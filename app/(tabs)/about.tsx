@@ -191,19 +191,16 @@ export default function AboutScreen() {
         colors={[C.GRADIENT_A, C.GRADIENT_B, C.GRADIENT_C]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={[s.headerBlock, { paddingTop: insets.top + 14 }]}
+        style={[s.headerBlock, { marginTop: insets.top + 12 }]}
       >
         <View style={s.headerInner}>
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => router.back()}
-            style={s.backBtn}
-          >
-            <Text style={s.backGlyph}>←</Text>
-          </TouchableOpacity>
+
           <View style={s.headerTextWrap}>
-            <Text style={s.kicker}>VISIT US</Text>
-            <Text style={s.mainTitle}>About Us</Text>
+            <Text style={s.kicker}>SINCE {EST_YEAR} · ABOUT US</Text>
+            <Text style={s.mainTitle}>{SHOP_NAME}</Text>
+            <Text style={s.shopTagline}>
+              Wholesale silver market · Ahmedabad, Gujarat
+            </Text>
           </View>
         </View>
       </LinearGradient>
@@ -213,20 +210,6 @@ export default function AboutScreen() {
         contentContainerStyle={s.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Shop name */}
-        <LinearGradient
-          colors={[C.GRADIENT_A, C.GRADIENT_B, C.GRADIENT_C]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={s.shopHeader}
-        >
-          <Text style={s.shopKicker}>Since {EST_YEAR}</Text>
-          <Text style={s.shopName}>{SHOP_NAME}</Text>
-          <Text style={s.shopTagline}>
-            Wholesale silver market · Ahmedabad, Gujarat
-          </Text>
-        </LinearGradient>
-
         {/* Map */}
         <View style={s.mapWrap}>
           <WebView
@@ -312,26 +295,23 @@ function createStyles(c) {
     safe: { flex: 1, backgroundColor: c.NAVY_DEEP },
 
     headerBlock: {
+      marginHorizontal: 16,
+      marginBottom: 16,
       paddingHorizontal: 20,
-      paddingBottom: 22
+      paddingVertical: 20,
+      borderRadius: 32,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 16 },
+      shadowOpacity: 0.25,
+      shadowRadius: 24,
+      elevation: 12,
     },
     headerInner: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 14,
     },
-    backBtn: {
-      width: 56,
-      height: 56,
-      borderRadius: 16,
-      backgroundColor: 'rgba(255,255,255,0.18)',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    backGlyph: {
-      fontFamily: 'Outfit_300Light',
-      fontSize: 20, color: '#FFFFFF', lineHeight: 22,
-    },
+
     headerTextWrap: {
       flex: 1,
     },
@@ -344,47 +324,27 @@ function createStyles(c) {
     },
     mainTitle: {
       fontFamily: 'CormorantGaramond_600SemiBold',
-      fontSize: 32,
-      lineHeight: 34,
+      fontSize: 28,
       color: '#FFFFFF',
+      marginBottom: 2,
+    },
+    shopTagline: {
+      fontFamily: 'Outfit_300Light',
+      fontSize: 11,
+      letterSpacing: 0.3,
+      color: 'rgba(255,255,255,0.78)',
     },
 
-    body: { flex: 1, backgroundColor: c.CREAM },
+    body: {
+      flex: 1,
+      backgroundColor: c.CREAM,
+      borderTopWidth: 4,
+      borderTopColor: '#0A0A0B',
+    },
     scrollContent: {
       paddingHorizontal: 16,
       paddingTop: 20,
       paddingBottom: 48,
-    },
-
-    shopHeader: {
-      marginBottom: 16,
-      borderRadius: 28,
-      padding: 22,
-      shadowColor: c.NAVY_DEEP,
-      shadowOffset: { width: 0, height: 16 },
-      shadowOpacity: 0.18,
-      shadowRadius: 26,
-      elevation: 7,
-    },
-    shopKicker: {
-      fontFamily: 'Outfit_600SemiBold',
-      fontSize: 10,
-      letterSpacing: 2.4,
-      color: 'rgba(255,255,255,0.72)',
-      textTransform: 'uppercase',
-      marginBottom: 6,
-    },
-    shopName: {
-      fontFamily: 'CormorantGaramond_600SemiBold',
-      fontSize: 30,
-      color: '#FFFFFF',
-      marginBottom: 6,
-    },
-    shopTagline: {
-      fontFamily: 'Outfit_300Light',
-      fontSize: 12,
-      letterSpacing: 0.5,
-      color: 'rgba(255,255,255,0.78)',
     },
 
     mapWrap: {

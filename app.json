@@ -2,7 +2,7 @@
   "expo": {
     "name": "PM Jewellers (Silver)",
     "slug": "pmj",
-    "version": "1.5.2",
+    "version": "1.6.0",
     "orientation": "portrait",
     "scheme": "pmj",
     "userInterfaceStyle": "automatic",
@@ -14,7 +14,7 @@
     "android": {
       "package": "com.abhishek261007.pmj",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 22,
+      "versionCode": 23,
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "permissions": [

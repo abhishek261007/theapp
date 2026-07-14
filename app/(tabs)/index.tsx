@@ -14,7 +14,7 @@
  * already installed, run: npx expo install expo-linear-gradient
  */
 
-import { FontAwesome } from '@expo/vector-icons';
+import { FontAwesome, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, {
@@ -32,13 +32,13 @@ import {
   Image,
   Linking,
   RefreshControl,
+  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import CartIcon from '../../assets/images/cart.png';
 import ScratchOfferCard from '../../components/ScratchOfferCard';
 import { useColors } from '../../colors';
 import { ActiveCampaign, fetchActiveCampaign } from '../../services/campaigns';
@@ -56,27 +56,7 @@ const GRID_GAP = 12;
 const H_PADDING = 16;
 const CARD_WIDTH = (SCREEN_WIDTH - H_PADDING * 2 - GRID_GAP) / 2;
 
-/* ─── Types ─── */
-type Catalog = {
-  _id: string;
-  name: string;
-  description?: string;
-  heroImageUrl?: string;
-  updatedAt?: string;
-};
-
-function buildHeroUrl(heroImageUrl?: string, updatedAt?: string): string | null {
-  if (!heroImageUrl) return null;
-  // Seed the cache-buster from both the file name and updatedAt so it changes
-  // whenever the image content changes (covers re-uploads that reuse a name).
-  const seed = `${heroImageUrl}:${updatedAt ?? ''}`;
-  const cacheBuster = `v=${encodeURIComponent(seed)}`;
-  if (heroImageUrl.startsWith('http')) {
-    return `${heroImageUrl}${heroImageUrl.includes('?') ? '&' : '?'}${cacheBuster}`;
-  }
-  return `${API_BASE}${heroImageUrl}?${cacheBuster}`;
-}
-
+import { CatalogCard, Catalog } from '../../components/home/CatalogCard';
 /* ─── Shimmer Hook ─── */
 function useShimmer(duration = 1600) {
   const anim = useRef(new Animated.Value(0)).current;
@@ -176,175 +156,7 @@ function createSkeletonStyles(c) {
   });
 }
 
-/* ─── Catalog Card (2-column grid item) ─── */
-interface CatalogCardProps {
-  item: Catalog;
-  index: number;
-  onPress: () => void;
-}
 
-const CatalogCard = memo(function CatalogCard({
-  item,
-  index,
-  onPress,
-}: CatalogCardProps) {
-  const C = useColors();
-  const s = createCardStyles(C);
-  const ACCENTS = [C.BURGUNDY, C.NAVY, C.TEAL, C.GOLD_DEEP];
-  const pressAnim = useRef(new Animated.Value(0)).current;
-  const heroUri = buildHeroUrl(item.heroImageUrl, item.updatedAt);
-  const accent = ACCENTS[index % ACCENTS.length];
-
-  const onPressIn = useCallback(() => {
-    Animated.timing(pressAnim, {
-      toValue: 1,
-      duration: 210,
-      easing: Easing.out(Easing.ease),
-      useNativeDriver: false,
-    }).start();
-  }, [pressAnim]);
-
-  const onPressOut = useCallback(() => {
-    Animated.timing(pressAnim, {
-      toValue: 0,
-      duration: 220,
-      easing: Easing.out(Easing.ease),
-      useNativeDriver: false,
-    }).start();
-  }, [pressAnim]);
-
-  const scale = pressAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0.97] });
-
-  return (
-    <TouchableOpacity
-      activeOpacity={1}
-      onPress={onPress}
-      onPressIn={onPressIn}
-      onPressOut={onPressOut}
-      style={{ width: CARD_WIDTH }}
-    >
-      <Animated.View style={[s.card, { transform: [{ scale }] }]}>
-        {/* Image block */}
-        <View style={s.imageWrap}>
-          {heroUri ? (
-            <Image key={heroUri} source={{ uri: heroUri }} style={s.image} resizeMode="cover" />
-          ) : (
-            <View style={[s.image, s.placeholderBg, { backgroundColor: accent + '22' }]}>
-              <Text style={[s.placeholderGlyph, { color: accent }]}>◆</Text>
-            </View>
-          )}
-
-          {/* Arrow badge */}
-          <View style={s.arrowCircle}>
-            <Text style={[s.arrowGlyph, { color: accent }]}>↗</Text>
-          </View>
-        </View>
-
-        {/* Text block */}
-        <View style={s.textBlock}>
-          <View style={[s.goldRule, { backgroundColor: accent }]} />
-          <Text style={s.cardName} numberOfLines={2}>
-            {item.name}
-          </Text>
-          {item.description ? (
-            <Text style={s.cardDesc} numberOfLines={1}>
-              {item.description}
-            </Text>
-          ) : null}
-        </View>
-      </Animated.View>
-    </TouchableOpacity>
-  );
-});
-
-function createCardStyles(c) {
-  return StyleSheet.create({
-    card: {
-      borderRadius: 18,
-      backgroundColor: c.PAPER,
-      marginBottom: GRID_GAP,
-      overflow: 'hidden',
-      shadowColor: c.NAVY_DEEP,
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.1,
-      shadowRadius: 12,
-      elevation: 4,
-    },
-    imageWrap: {
-      height: 210,
-      position: 'relative',
-    },
-    image: {
-      width: '100%',
-      height: '100%',
-    },
-    placeholderBg: {
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    placeholderGlyph: {
-      fontFamily: 'CormorantGaramond_600SemiBold',
-      fontSize: 34,
-    },
-    indexChip: {
-      position: 'absolute',
-      top: 10,
-      left: 10,
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      borderRadius: 8,
-    },
-    indexChipText: {
-      fontFamily: 'Outfit_600SemiBold',
-      fontSize: 10,
-      color: '#FFFFFF',
-      letterSpacing: 0.5,
-    },
-    arrowCircle: {
-      position: 'absolute',
-      bottom: 10,
-      right: 10,
-      width: 30,
-      height: 30,
-      borderRadius: 15,
-      backgroundColor: '#FFFFFF',
-      alignItems: 'center',
-      justifyContent: 'center',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.12,
-      shadowRadius: 4,
-      elevation: 3,
-    },
-    arrowGlyph: {
-      fontSize: 14,
-      lineHeight: 16,
-    },
-    textBlock: {
-      padding: 12,
-    },
-    goldRule: {
-      width: 20,
-      height: 3,
-      borderRadius: 2,
-      marginBottom: 8,
-    },
-    cardName: {
-      fontFamily: 'CormorantGaramond_600SemiBold',
-      fontSize: 17,
-      lineHeight: 20,
-      color: c.INK,
-    },
-    cardDesc: {
-      fontFamily: 'Outfit_300Light',
-      fontSize: 10,
-      letterSpacing: 1,
-      textTransform: 'uppercase',
-      color: c.MUTED,
-      marginTop: 4,
-    },
-  });
-}
 
 /* ─── Footer Links (WhatsApp / Instagram) ─── */
 function FooterLinks() {
@@ -520,12 +332,13 @@ export default function CatalogsScreen() {
 
   return (
     <View style={s.safe}>
+      <StatusBar barStyle="light-content" backgroundColor={C.NAVY_DEEP} />
       {/* ── Bright gradient header ── */}
       <LinearGradient
         colors={[C.GRADIENT_A, C.GRADIENT_B, C.GRADIENT_C]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={[s.headerBlock, { paddingTop: insets.top + 14 }]}
+        style={[s.headerBlock, { marginTop: insets.top + 12 }]}
       >
         <View style={s.headerInner}>
           <View style={{ flexShrink: 1 }}>
@@ -537,15 +350,7 @@ export default function CatalogsScreen() {
             onPress={() => router.push('/cart')}
             style={s.cartBtn}
           >
-              <Image
-                source={CartIcon}
-                style={{
-                  width: 36,
-                  height: 36,
-                  resizeMode: 'contain',
-                }}
-              />
-            <Text style={s.cartLabel}>My Order</Text>
+            <Feather name="shopping-bag" size={24} color="#FFFFFF" />
             {cartCount > 0 && (
               <View style={s.badge}>
                 <Text style={s.badgeText}>{cartCount > 99 ? '99+' : cartCount}</Text>
@@ -641,12 +446,18 @@ function createStyles(c) {
       backgroundColor: c.NAVY_DEEP,
     },
 
-    /* ── Gradient header block ── */
+    /* ── Floating gradient header block ── */
     headerBlock: {
+      marginHorizontal: 16,
+      marginBottom: 16,
       paddingHorizontal: 20,
-      paddingBottom: 22,
-      //borderBottomLeftRadius: 28,
-      //borderBottomRightRadius: 28,
+      paddingVertical: 20,
+      borderRadius: 32,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 16 },
+      shadowOpacity: 0.25,
+      shadowRadius: 24,
+      elevation: 12,
     },
     headerInner: {
       flexDirection: 'row',
@@ -657,22 +468,13 @@ function createStyles(c) {
 
     /* Cart */
     cartBtn: {
-      width: 72,
-      height: 72,
+      width: 56,
+      height: 56,
       borderRadius: 16,
       backgroundColor: 'rgba(255,255,255,0.18)',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 2,
-    },
-
-    cartLabel: {
-      fontFamily: 'Outfit_600SemiBold',
-      fontSize: 12,
-      letterSpacing: 1.5,
-      textTransform: 'uppercase',
-      color: '#0C0C0C',
-      textAlign: 'center',
+      marginTop: 4,
     },
 
     badge: {
@@ -690,8 +492,10 @@ function createStyles(c) {
     body: {
       flex: 1,
       backgroundColor: c.CREAM,
-      paddingHorizontal: H_PADDING,
-      paddingTop: 16,
+      borderTopWidth: 4,
+      borderTopColor: '#0A0A0B',
+      paddingHorizontal: 16,
+      paddingTop: 20,
     },
 
     /* Count */

@@ -22,14 +22,9 @@
  */
 
 import * as Haptics from 'expo-haptics';
-import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, {
-  createContext,
-  memo,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -38,7 +33,6 @@ import React, {
 import {
   Animated,
   Dimensions,
-  Easing,
   FlatList,
   LayoutAnimation,
   ListRenderItemInfo,
@@ -52,222 +46,25 @@ import {
   UIManager,
   View,
 } from 'react-native';
-import CartIcon from '../../assets/images/cart.png';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '../../colors';
 import api from '../../services/api';
 import useCartStore, { CartItem } from '../../store/cartStore';
 import useWishlistStore from '../../store/wishlistStore';
-
+import { useShimmer } from '../../hooks/useShimmer';
+import { CartAnimationProvider } from '../../components/providers/CartAnimationProvider';
+import { CatalogHeader } from '../../components/catalog/CatalogHeader';
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
 
-/* ─── Types ─── */
-type Design = {
-  _id: string;
-  catalogName: string;
-  sku: string;
-  weight: number;
-  status: string;
-  imageUrl?: string;
-  thumbnailUrl?: string;
-};
+import { Design, H_PADDING, COLUMN_GAP, CARD_WIDTH, DesignCard } from '../../components/catalog/DesignCard';
 
-/* ─── Constants ─── */
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const H_PADDING  = 16;
-const COLUMN_GAP = 10;
-const CARD_WIDTH = (SCREEN_WIDTH - H_PADDING * 2 - COLUMN_GAP) / 2;
 
-/* ─── Pure helpers ─── */
-function buildImageUrl(imageUrl?: string): string | null {
-  if (!imageUrl) return null;
-  if (imageUrl.startsWith('http')) return imageUrl;
-  return `https://apis.27012610.xyz${imageUrl}`;
-}
 
-/* ─── Gold Shimmer Hook ─── */
-function useShimmer(duration = 1600) {
-  const anim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.timing(anim, {
-        toValue: 1,
-        duration,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [anim, duration]);
-  return anim;
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   Cart Animation Context
-   ═══════════════════════════════════════════════════════════════ */
-interface FlyPayload {
-  imageUri: string | null;
-  sourceRef: React.RefObject<View>;
-}
-interface CartAnimCtx {
-  triggerFlyToCart: (payload: FlyPayload) => void;
-  cartIconRef: React.RefObject<View>;
-  cartScaleAnim: Animated.Value;
-  badgeScaleAnim: Animated.Value;
-}
-const CartAnimationContext = createContext<CartAnimCtx | null>(null);
-function useCartAnimation() {
-  const ctx = useContext(CartAnimationContext);
-  if (!ctx) throw new Error('useCartAnimation must be inside CartAnimationProvider');
-  return ctx;
-}
-
-interface FlyingThumb {
-  id: number;
-  imageUri: string | null;
-  startX: number; startY: number; endX: number; endY: number;
-  progress: Animated.Value; opacity: Animated.Value;
-  scale: Animated.Value; rotate: Animated.Value;
-}
-let _flyId = 0;
-
-function CartAnimationOverlayConnected({
-  triggerRef, cartIconRef, cartScaleAnim, badgeScaleAnim,
-}: {
-  triggerRef: React.MutableRefObject<(p: FlyPayload) => void>;
-  cartIconRef: React.RefObject<View>;
-  cartScaleAnim: Animated.Value;
-  badgeScaleAnim: Animated.Value;
-}) {
-  const C = useColors();
-  const overlayS = createOverlayStyles(C);
-  const [thumbs, setThumbs] = useState<FlyingThumb[]>([]);
-  const addThumb    = useCallback((t: FlyingThumb) => setThumbs((p) => [...p, t]), []);
-  const removeThumb = useCallback((id: number) => setThumbs((p) => p.filter((t) => t.id !== id)), []);
-
-  useEffect(() => {
-    triggerRef.current = ({ imageUri, sourceRef }: FlyPayload) => {
-      if (!cartIconRef.current || !sourceRef.current) return;
-      sourceRef.current.measureInWindow((sx, sy, sw, sh) => {
-        cartIconRef.current!.measureInWindow((cx, cy, cw, ch) => {
-          const startX = sx + sw / 2 - 24;
-          const startY = sy + sh * 0.3;
-          const endX   = cx + cw / 2 - 24;
-          const endY   = cy + ch / 2 - 24;
-          const progress = new Animated.Value(0);
-          const opacity  = new Animated.Value(1);
-          const scale    = new Animated.Value(1);
-          const rotate   = new Animated.Value(0);
-          const id       = ++_flyId;
-          addThumb({ id, imageUri, startX, startY, endX, endY, progress, opacity, scale, rotate });
-          Animated.parallel([
-            Animated.timing(progress, { toValue: 1, duration: 620, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-            Animated.timing(scale,    { toValue: 0.7, duration: 620, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-            Animated.sequence([
-              Animated.timing(opacity, { toValue: 0.9, duration: 380, useNativeDriver: true }),
-              Animated.timing(opacity, { toValue: 0,   duration: 240, useNativeDriver: true }),
-            ]),
-            Animated.timing(rotate, { toValue: 1, duration: 620, useNativeDriver: true }),
-          ]).start(() => {
-            removeThumb(id);
-            Animated.sequence([
-              Animated.timing(cartScaleAnim, { toValue: 1.12, duration: 120, useNativeDriver: true }),
-              Animated.spring(cartScaleAnim, { toValue: 1, friction: 4, tension: 200, useNativeDriver: true }),
-            ]).start();
-            badgeScaleAnim.setValue(0.5);
-            Animated.spring(badgeScaleAnim, { toValue: 1, friction: 3.5, tension: 200, useNativeDriver: true }).start();
-          });
-        });
-      });
-    };
-  }, [addThumb, removeThumb, cartIconRef, cartScaleAnim, badgeScaleAnim, triggerRef]);
-
-  return (
-    <>
-      {thumbs.map((thumb) => {
-        const dx = thumb.endX - thumb.startX;
-        const dy = thumb.endY - thumb.startY;
-        const arcH = Math.min(Math.abs(dy) * 0.8, 130);
-        const translateX = thumb.progress.interpolate({ inputRange: [0, 1], outputRange: [0, dx] });
-        const translateY = thumb.progress.interpolate({
-          inputRange:  [0, 0.3, 0.6, 1],
-          outputRange: [0, dy * 0.3 - arcH, dy * 0.6 - arcH * 0.5, dy],
-        });
-        const rotateInterp = thumb.rotate.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '4deg'] });
-        return (
-          <Animated.View
-            key={thumb.id} pointerEvents="none"
-            style={[overlayS.thumb, {
-              position: 'absolute', left: thumb.startX, top: thumb.startY,
-              opacity: thumb.opacity,
-              transform: [{ translateX }, { translateY }, { scale: thumb.scale }, { rotate: rotateInterp }],
-            }]}
-          >
-            {thumb.imageUri
-              ? <Image source={thumb.imageUri} style={overlayS.thumbImage} contentFit="cover" cachePolicy="memory-disk" />
-              : <View style={overlayS.thumbPlaceholder}><Text style={overlayS.thumbGlyph}>◆</Text></View>
-            }
-            <Animated.View style={[overlayS.glow, { opacity: thumb.opacity }]} />
-          </Animated.View>
-        );
-      })}
-    </>
-  );
-}
-
-function CartAnimationProvider({
-  children, cartIconRef, cartScaleAnim, badgeScaleAnim,
-}: {
-  children: React.ReactNode;
-  cartIconRef: React.RefObject<View>;
-  cartScaleAnim: Animated.Value;
-  badgeScaleAnim: Animated.Value;
-  onTrigger: (fn: (p: FlyPayload) => void) => void;
-}) {
-  const triggerRef = useRef<(p: FlyPayload) => void>(() => {});
-  const ctx: CartAnimCtx = useMemo(() => ({
-    triggerFlyToCart: (p) => triggerRef.current(p),
-    cartIconRef, cartScaleAnim, badgeScaleAnim,
-  }), [cartIconRef, cartScaleAnim, badgeScaleAnim]);
-
-  return (
-    <CartAnimationContext.Provider value={ctx}>
-      {children}
-      <CartAnimationOverlayConnected
-        triggerRef={triggerRef}
-        cartIconRef={cartIconRef}
-        cartScaleAnim={cartScaleAnim}
-        badgeScaleAnim={badgeScaleAnim}
-      />
-    </CartAnimationContext.Provider>
-  );
-}
-
-function createOverlayStyles(c) {
-  return StyleSheet.create({
-    thumb: {
-      width: 48, height: 48, borderRadius: 10,
-      backgroundColor: c.PAPER,
-      overflow: 'hidden',
-      shadowColor: c.NAVY_DEEP, shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.2, shadowRadius: 10, elevation: 8, zIndex: 9999,
-    },
-    thumbImage: { width: '100%', height: '100%' },
-    thumbPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.TINT },
-    thumbGlyph: { fontFamily: 'CormorantGaramond_600SemiBold', fontSize: 16, color: c.GOLD_DEEP },
-    glow: {
-      ...StyleSheet.absoluteFillObject, borderRadius: 10,
-      backgroundColor: 'transparent',
-      shadowColor: c.NAVY_DEEP, shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: 0.3, shadowRadius: 14,
-    },
-  });
-}
 
 /* ─── Skeleton Card (equal size, no tall variant) ─── */
 function SkeletonCard() {
@@ -301,7 +98,6 @@ function createSkeletonStyles(c) {
   return StyleSheet.create({
     card: {
       width: CARD_WIDTH,
-      height: 310,
       borderRadius: 18,
       backgroundColor: c.PAPER,
       marginBottom: COLUMN_GAP,
@@ -309,11 +105,11 @@ function createSkeletonStyles(c) {
     },
     inner: {},
     imagePlaceholder: {
-      height: 210,
+      height: CARD_WIDTH,
       backgroundColor: c.TINT,
     },
-    bodyPad: { padding: 12, gap: 6 },
-    nameLine: { width: '80%', height: 12, backgroundColor: c.BORDER_SOFT, borderRadius: 4, marginBottom: 8 },
+    bodyPad: { padding: 8, gap: 6 },
+    nameLine: { width: '80%', height: 12, backgroundColor: c.BORDER_SOFT, borderRadius: 4, marginBottom: 4 },
     nameLineShort: { width: '50%', height: 10, backgroundColor: c.BORDER_SOFT, borderRadius: 4 },
     chipsRow: { flexDirection: 'row', gap: 4, marginTop: 2 },
     chip: { flex: 1, height: 28, backgroundColor: c.BORDER_SOFT, borderRadius: 1, opacity: 0.6 },
@@ -321,263 +117,7 @@ function createSkeletonStyles(c) {
   });
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   Design Card — equal size, tightened, two chips side by side
-   ═══════════════════════════════════════════════════════════════ */
-interface DesignCardProps {
-  item: Design;
-  index: number;
-  onPress: (item: Design) => void;
-  onAddToCart: (item: Design) => void;
-  isWishlisted: boolean;
-  onToggleWishlist: (item: Design) => void;
-  isInCart: boolean;
-}
 
-const DesignCard = memo(function DesignCard({ item, index, onPress, onAddToCart, isWishlisted, onToggleWishlist, isInCart }: DesignCardProps) {
-  const C = useColors();
-  const cardS = createCardStyles(C);
-  const { triggerFlyToCart } = useCartAnimation();
-
-  const pressAnim    = useRef(new Animated.Value(0)).current;
-  const btnScaleAnim = useRef(new Animated.Value(1)).current;
-  const btnBgAnim    = useRef(new Animated.Value(0)).current;
-  const addingRef    = useRef(false);
-  const imageViewRef = useRef<View>(null);
-
-  // Grid card uses the small server-generated thumbnail when available —
-  // falls back to the full-res imageUrl for designs uploaded before
-  // thumbnails existed.
-  const imageUri = buildImageUrl(item.thumbnailUrl || item.imageUrl);
-
-  const onPressIn = useCallback(() => {
-    Animated.timing(pressAnim, {
-      toValue: 1, duration: 180,
-      easing: Easing.out(Easing.ease),
-      useNativeDriver: false,
-    }).start();
-  }, [pressAnim]);
-
-  const onPressOut = useCallback(() => {
-    Animated.timing(pressAnim, {
-      toValue: 0, duration: 240,
-      easing: Easing.out(Easing.ease),
-      useNativeDriver: false,
-    }).start();
-  }, [pressAnim]);
-
-  const cardBg      = pressAnim.interpolate({ inputRange: [0, 1], outputRange: [C.CREAM, C.PAPER] });
-  const borderColor = pressAnim.interpolate({ inputRange: [0, 1], outputRange: [C.BORDER_SOFT, C.GOLD_DEEP] });
-  const btnBg       = btnBgAnim.interpolate({ inputRange: [0, 1], outputRange: [C.NAVY_DEEP, C.INK] });
-
-  const handleAddPress = useCallback(() => {
-    if (addingRef.current) return;
-    addingRef.current = true;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-
-    Animated.sequence([
-      Animated.parallel([
-        Animated.timing(btnScaleAnim, { toValue: 0.97, duration: 80, useNativeDriver: true }),
-        Animated.timing(btnBgAnim,    { toValue: 1,    duration: 80, useNativeDriver: false }),
-      ]),
-      Animated.parallel([
-        Animated.timing(btnScaleAnim, { toValue: 1, duration: 100, easing: Easing.out(Easing.back(1.5)), useNativeDriver: true }),
-        Animated.timing(btnBgAnim,    { toValue: 0, duration: 200, useNativeDriver: false }),
-      ]),
-    ]).start();
-
-    triggerFlyToCart({ imageUri, sourceRef: imageViewRef as React.RefObject<View> });
-    onAddToCart(item);
-    setTimeout(() => { addingRef.current = false; }, 100);
-  }, [onAddToCart, item, imageUri, triggerFlyToCart, btnScaleAnim, btnBgAnim]);
-
-  const handleCardPress = useCallback(() => {
-    if (addingRef.current) return;
-    onPress(item);
-  }, [onPress, item]);
-
-  return (
-    <TouchableOpacity activeOpacity={1} onPress={handleCardPress} onPressIn={onPressIn} onPressOut={onPressOut}>
-      <Animated.View style={[cardS.card, { backgroundColor: cardBg, borderColor }]}>
-
-        {/* Image area */}
-        <View ref={imageViewRef} collapsable={false}>
-          {imageUri ? (
-            <Image
-              source={imageUri}
-              style={cardS.image}
-              contentFit="contain"
-              cachePolicy="memory-disk"
-              transition={150}
-            />
-          ) : (
-            <View style={cardS.imagePlaceholder}>
-              <Text style={cardS.placeholderGlyph}>◆</Text>
-            </View>
-          )}
-
-          {/* Wishlist heart */}
-          <TouchableOpacity
-            onPress={() => onToggleWishlist(item)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            style={cardS.heartBtn}
-          >
-            <Text style={[cardS.heartGlyph, isWishlisted && cardS.heartActive]}>
-              {isWishlisted ? '♥' : '♡'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Subtle gold rule under image */}
-        <View style={cardS.imageRule} />
-
-        {/* Body */}
-        <View style={cardS.body}>
-          {/* Combined SKU + Weight pill */}
-          <View style={cardS.infoPill}>
-            <View style={cardS.pillSection}>
-              <Text style={cardS.pillLabel}>Tag</Text>
-              <Text style={cardS.pillValue} numberOfLines={2}>{item.sku}</Text>
-            </View>
-            <View style={cardS.pillDivider} />
-            <View style={cardS.pillSection}>
-              <Text style={cardS.pillLabel}>Wt</Text>
-              <Text style={cardS.pillValue}>{item.weight}g</Text>
-            </View>
-          </View>
-
-          {/* Gold rule */}
-          <View style={cardS.goldRule} />
-
-          {/* Add to cart button */}
-          {isInCart ? (
-            <View style={[cardS.addBtn, cardS.addBtnAdded]}>
-              <Text style={cardS.addBtnTextAdded}>Added ✓</Text>
-            </View>
-          ) : (
-            <Animated.View style={{ transform: [{ scale: btnScaleAnim }] }}>
-              <TouchableOpacity activeOpacity={1} onPress={handleAddPress}>
-                <Animated.View style={[cardS.addBtn, { backgroundColor: btnBg }]}>
-                  <Text style={cardS.addBtnText}>Add to Order</Text>
-                  <Text style={cardS.addBtnGlyph}>↗</Text>
-                </Animated.View>
-              </TouchableOpacity>
-            </Animated.View>
-          )}
-        </View>
-      </Animated.View>
-    </TouchableOpacity>
-  );
-});
-
-function createCardStyles(c) {
-  return StyleSheet.create({
-    card: {
-      width: CARD_WIDTH,
-      borderRadius: 18,
-      backgroundColor: c.PAPER,
-      marginBottom: COLUMN_GAP,
-      overflow: 'hidden',
-      shadowColor: c.NAVY_DEEP,
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.1,
-      shadowRadius: 12,
-      elevation: 4,
-    },
-    image: {
-      width: '100%',
-      height: CARD_WIDTH * 1.1,
-      backgroundColor: c.TINT,
-    },
-    imagePlaceholder: {
-      width: '100%',
-      height: CARD_WIDTH * 1.1,
-      backgroundColor: c.TINT,
-      alignItems: 'center', justifyContent: 'center',
-    },
-    placeholderGlyph: {
-      fontFamily: 'CormorantGaramond_600SemiBold',
-      fontSize: 30, color: c.GOLD_DEEP, opacity: 0.5,
-    },
-    imageRule: {
-      height: 3,
-      width: 20,
-      backgroundColor: c.GOLD_DEEP,
-      marginLeft: 8,
-      borderRadius: 2,
-    },
-    heartBtn: {
-      position: 'absolute', top: 8, right: 8,
-      width: 32, height: 32,
-      borderRadius: 16,
-      backgroundColor: 'rgba(255,255,255,0.85)',
-      alignItems: 'center', justifyContent: 'center',
-    },
-    heartGlyph: {
-      fontSize: 18, lineHeight: 20, color: c.MUTED,
-    },
-    heartActive: {
-      color: c.HEART_ACTIVE,
-    },
-    body: { padding: 10, gap: 8 },
-    /* Combined SKU + Weight pill */
-    infoPill: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      borderRadius: 8,
-      borderWidth: 1,
-      borderColor: c.BORDER_SOFT,
-      backgroundColor: c.TINT,
-    },
-    pillSection: {
-      flex: 1,
-      paddingHorizontal: 7,
-      paddingVertical: 5,
-    },
-    pillDivider: {
-      width: 1,
-      alignSelf: 'stretch',
-      backgroundColor: c.BORDER_SOFT,
-      opacity: 0.5,
-    },
-    pillLabel: {
-      fontFamily: 'Outfit_600SemiBold',
-      fontSize: 7, letterSpacing: 1.5,
-      textTransform: 'uppercase', color: c.MUTED,
-    },
-    pillValue: {
-      fontFamily: 'Outfit_400Regular',
-      fontSize: 10, color: c.INK, letterSpacing: 0.2,
-    },
-    goldRule: {
-      width: 20, height: 3,
-      backgroundColor: c.GOLD_DEEP,
-      borderRadius: 2,
-    },
-    addBtn: {
-      flexDirection: 'row', alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: 10, gap: 6,
-      borderRadius: 12,
-      backgroundColor: c.BURGUNDY,
-    },
-    addBtnAdded: {
-      backgroundColor: c.NAVY_DEEP,
-      opacity: 0.5,
-    },
-    addBtnText: {
-      fontFamily: 'Outfit_600SemiBold',
-      fontSize: 10, letterSpacing: 1.5,
-      textTransform: 'uppercase', color: '#FFFFFF',
-    },
-    addBtnTextAdded: {
-      fontFamily: 'Outfit_600SemiBold',
-      fontSize: 10, letterSpacing: 1.5,
-      textTransform: 'uppercase', color: c.MUTED,
-    },
-    addBtnGlyph: { fontSize: 11, color: c.GOLD_DEEP, lineHeight: 14 },
-  });
-}
 
 /* ═══════════════════════════════════════════════════════════════
    Main Screen
@@ -589,6 +129,7 @@ export default function CatalogDetailsScreen() {
   const addToCart  = useCartStore((s) => s.addToCart);
   const cartItems  = useCartStore((s) => s.items);
   const cartCount  = cartItems.length;
+  const insets     = useSafeAreaInsets();
 
   const [designs, setDesigns]   = useState<Design[]>([]);
   const [loading, setLoading]   = useState(true);
@@ -614,7 +155,7 @@ export default function CatalogDetailsScreen() {
   const toggleWishlist = useWishlistStore((s) => s.toggle);
   const hasWishlist = useWishlistStore((s) => s.has);
 
-  const insets = useSafeAreaInsets();
+
   const cartIconRef    = useRef<View>(null);
   const cartScaleAnim  = useRef(new Animated.Value(1)).current;
   const badgeScaleAnim = useRef(new Animated.Value(1)).current;
@@ -801,55 +342,14 @@ export default function CatalogDetailsScreen() {
       <View style={s.safe}>
         <StatusBar barStyle="light-content" backgroundColor={C.NAVY_DEEP} />
 
-        {/* ── Gradient header block (matches CatalogsScreen) ── */}
-        <LinearGradient
-          colors={[C.GRADIENT_A, C.GRADIENT_B, C.GRADIENT_C]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={[s.headerBlock, { paddingTop: insets.top + 14 }]}
-        >
-          <View style={s.headerInner}>
-            {/* Back button */}
-            <TouchableOpacity
-              onPress={() => { if (router.canGoBack()) router.back(); else router.replace('/'); }}
-              activeOpacity={0.8}
-              style={s.backBtn}
-            >
-              <Text style={s.backGlyph}>←</Text>
-            </TouchableOpacity>
-
-            {/* Collection name */}
-            <View style={s.headerTitleWrap}>
-              <Text style={s.mainTitle} numberOfLines={2}>{name}</Text>
-              <View style={s.shimmerClip} pointerEvents="none">
-                <ShimmerBar />
-              </View>
-            </View>
-
-            {/* Cart button (animated) */}
-            <Animated.View style={{ transform: [{ scale: cartScaleAnim }] }}>
-              <TouchableOpacity
-                ref={cartIconRef}
-                onPress={() => router.push('/cart')}
-                activeOpacity={0.8}
-                style={s.cartBtn}
-                collapsable={false}
-              >
-                <Image
-                  source={CartIcon}
-                  style={{ width: 36, height: 36 }}
-                  contentFit="contain"
-                />
-                <Text style={s.cartLabel}>My Order</Text>
-                {cartCount > 0 && (
-                  <Animated.View style={[s.badge, { transform: [{ scale: badgeScaleAnim }] }]}>
-                    <Text style={s.badgeText}>{cartCount > 99 ? '99+' : cartCount}</Text>
-                  </Animated.View>
-                )}
-              </TouchableOpacity>
-            </Animated.View>
-          </View>
-        </LinearGradient>
+        {/* ── Gradient header block ── */}
+        <CatalogHeader
+          name={String(name)}
+          cartCount={cartCount}
+          cartIconRef={cartIconRef}
+          cartScaleAnim={cartScaleAnim}
+          badgeScaleAnim={badgeScaleAnim}
+        />
 
         {/* ── Cream body ── */}
         <View style={s.body}>
@@ -1047,7 +547,6 @@ export default function CatalogDetailsScreen() {
               refreshControl={
                 <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.BURGUNDY} />
               }
-              removeClippedSubviews={true}
               maxToRenderPerBatch={6}
               updateCellsBatchingPeriod={50}
               windowSize={7}
@@ -1061,109 +560,40 @@ export default function CatalogDetailsScreen() {
                   </Text>
                 </View>
               }
+              ListFooterComponent={
+                filteredDesigns.length > 0 ? (
+                  <View style={s.listFooter}>
+                    <Text style={s.footerGlyph}>◆</Text>
+                    <Text style={s.footerText}>End of Collection</Text>
+                  </View>
+                ) : null
+              }
             />
           )}
         </View>
+
+        {/* ── Decorative Bottom Strip ── */}
+        <View style={[s.fakeTabBar, { paddingBottom: insets.bottom, height: 10 + insets.bottom, backgroundColor: C.BORDER_SOFT }]} />
       </View>
     </CartAnimationProvider>
   );
 }
 
-/* ─── Shimmer bar ─── */
-function ShimmerBar() {
-  const shimmer = useShimmer(2400);
-  const translateX = shimmer.interpolate({ inputRange: [0, 1], outputRange: [-200, 300] });
-  return (
-    <Animated.View style={[shimmerStyles.bar, { transform: [{ translateX }] }]} />
-  );
-}
-const shimmerStyles = StyleSheet.create({
-  bar: {
-    position: 'absolute', top: 0, bottom: 0, width: 80,
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    transform: [{ skewX: '-20deg' }],
-  },
-});
+
 
 /* ─── Global Styles ─── */
 function createStyles(c) {
   return StyleSheet.create({
     safe: { flex: 1, backgroundColor: c.NAVY_DEEP },
 
-    /* ── Gradient header (matches CatalogsScreen) ── */
-    headerBlock: {
-      paddingHorizontal: 20,
-      paddingBottom: 22
-    },
-    eyebrowText: {
-      fontFamily: 'Outfit_600SemiBold',
-      fontSize: 10,
-      letterSpacing: 3,
-      color: 'rgba(255,255,255,0.85)',
-      marginBottom: 2,
-    },
-    headerInner: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'flex-start',
-      gap: 12,
-    },
-    backBtn: {
-      width: 56,
-      height: 56,
-      borderRadius: 16,
-      backgroundColor: 'rgba(255,255,255,0.18)',
-      borderWidth: 0,
-      borderColor: '#000',
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginTop: 4,
-    },
-    backGlyph: {
-      fontFamily: 'Outfit_300Light',
-      fontSize: 20, color: '#FFFFFF', lineHeight: 22,
-    },
-    headerTitleWrap: {
-      flex: 1,
-      overflow: 'hidden',
-      position: 'relative',
-    },
-    mainTitle: {
-      fontFamily: 'CormorantGaramond_600SemiBold',
-      fontSize: 36, lineHeight: 40,
-      letterSpacing: -.7, color: '#FFFFFF',
-    },
-    shimmerClip: { ...StyleSheet.absoluteFillObject, overflow: 'hidden' },
 
-    /* Cart */
-    cartBtn: {
-      width: 72, height: 72,
-      borderRadius: 16,
-      backgroundColor: 'rgba(255,255,255,0.18)',
-      alignItems: 'center', justifyContent: 'center',
-      gap: 2,
-    },
-    cartLabel: {
-      fontFamily: 'Outfit_600SemiBold',
-      fontSize: 12, letterSpacing: 1.5,
-      textTransform: 'uppercase', color: '#0C0C0C',
-      textAlign: 'center',
-    },
-    badge: {
-      position: 'absolute', top: -4, right: -4,
-      width: 18, height: 18, borderRadius: 9,
-      backgroundColor: c.GOLD_DEEP,
-      alignItems: 'center', justifyContent: 'center',
-    },
-    badgeText: {
-      fontFamily: 'Outfit_400Regular',
-      fontSize: 8, color: '#FFFFFF', letterSpacing: 0.2,
-    },
 
     /* ── Cream body ── */
     body: {
       flex: 1,
       backgroundColor: c.CREAM,
+      borderTopWidth: 4,
+      borderTopColor: '#0A0A0B',
       paddingHorizontal: H_PADDING,
       paddingTop: 20,
     },
@@ -1252,6 +682,24 @@ function createStyles(c) {
       shadowOpacity: 0.05,
       shadowRadius: 6,
       elevation: 1,
+    },
+
+    /* List Footer */
+    listFooter: {
+      alignItems: 'center',
+      paddingVertical: 32,
+      gap: 8,
+    },
+    footerGlyph: {
+      color: c.GOLD_DEEP,
+      fontSize: 10,
+    },
+    footerText: {
+      fontFamily: 'Outfit_300Light',
+      fontSize: 12,
+      letterSpacing: 2,
+      textTransform: 'uppercase',
+      color: c.MUTED,
     },
     filterPanelLabel: {
       fontFamily: 'Outfit_600SemiBold',
@@ -1441,7 +889,15 @@ function createStyles(c) {
     },
     sortOptionCheck: {
       fontFamily: 'Outfit_700Bold',
-      fontSize: 14, color: c.NAVY,
+      fontSize: 14, color: c.INK,
+    },
+
+    /* Decorative Bottom Strip */
+    fakeTabBar: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderTopWidth: 2,
+      borderTopColor: '#0A0A0B',
     },
   });
 }

@@ -181,7 +181,7 @@ export default function WishlistScreen() {
         colors={[C.GRADIENT_A, C.GRADIENT_B, C.GRADIENT_C]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={[s.headerBlock, { paddingTop: insets.top + 14 }]}
+        style={[s.headerBlock, { marginTop: insets.top + 12 }]}
       >
         <View style={s.headerInner}>
           <View style={s.headerTitleWrap}>
@@ -236,12 +236,20 @@ export default function WishlistScreen() {
 
 function createStyles(c) {
   return StyleSheet.create({
-    safe: { flex: 1, backgroundColor: c.CREAM },
+    safe: { flex: 1, backgroundColor: c.NAVY_DEEP },
 
     /* Header */
     headerBlock: {
+      marginHorizontal: 16,
+      marginBottom: 16,
       paddingHorizontal: 20,
-      paddingBottom: 22
+      paddingVertical: 20,
+      borderRadius: 32,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 16 },
+      shadowOpacity: 0.25,
+      shadowRadius: 24,
+      elevation: 12,
     },
     headerInner: {
       flexDirection: 'row',
@@ -276,8 +284,10 @@ function createStyles(c) {
     body: {
       flex: 1,
       backgroundColor: c.CREAM,
-      paddingHorizontal: H_PADDING,
-      paddingTop: 20,
+      borderTopWidth: 4,
+      borderTopColor: '#0A0A0B',
+      paddingHorizontal: 16,
+      paddingTop: 16,
     },
     countText: {
       fontFamily: 'Outfit_600SemiBold',

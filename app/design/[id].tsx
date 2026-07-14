@@ -49,21 +49,17 @@ import {
 } from 'react-native';
 import ImageZoom from 'react-native-image-pan-zoom';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import CartIcon from '../../assets/images/cart.png';
+import { Feather } from '@expo/vector-icons';
 import { useColors } from '../../colors';
 import api from '../../services/api';
 import useCartStore, { CartStore } from '../../store/cartStore';
 import useWishlistStore from '../../store/wishlistStore';
-
-/* ─── Types ─── */
-type Design = {
-  _id: string;
-  catalogName: string;
-  sku: string;
-  weight: number;
-  status: string;
-  imageUrl?: string | null;
-};
+import { useShimmer } from '../../hooks/useShimmer';
+import { CartAnimationProvider, useCartAnimation } from '../../components/providers/CartAnimationProvider';
+import { ShimmerBar } from '../../components/ui/ShimmerBar';
+import { ImageGallery } from '../../components/design/ImageGallery';
+import { ActionTray } from '../../components/design/ActionTray';
+import { Design } from '../../components/catalog/DesignCard';
 
 type RouteParams = {
   id: string;
@@ -140,207 +136,7 @@ function applyForwardedFilter(
   return result;
 }
 
-/* ─── Gold Shimmer Hook (mirrors CatalogDetailsScreen) ─── */
-function useShimmer(duration = 1600) {
-  const anim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.timing(anim, {
-        toValue: 1,
-        duration,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [anim, duration]);
-  return anim;
-}
 
-/* ═══════════════════════════════════════════════════════════════
-   Cart Animation Context (preserved from original)
-   ═══════════════════════════════════════════════════════════════ */
-interface FlyPayload {
-  imageUri: string | null;
-  sourceRef: React.RefObject<View>;
-}
-
-interface CartAnimCtx {
-  triggerFlyToCart: (payload: FlyPayload) => void;
-  cartIconRef: React.RefObject<View>;
-  cartScaleAnim: Animated.Value;
-  badgeScaleAnim: Animated.Value;
-}
-
-const CartAnimationContext = createContext<CartAnimCtx | null>(null);
-
-function useCartAnimation(): CartAnimCtx {
-  const ctx = useContext(CartAnimationContext);
-  if (!ctx) throw new Error('useCartAnimation must be inside CartAnimationProvider');
-  return ctx;
-}
-
-interface FlyingThumb {
-  id: number;
-  imageUri: string | null;
-  startX: number; startY: number; endX: number; endY: number;
-  progress: Animated.Value; opacity: Animated.Value;
-  scale: Animated.Value; rotate: Animated.Value;
-}
-
-let _flyId = 0;
-
-function CartAnimationOverlayConnected({
-  triggerRef, cartIconRef, cartScaleAnim, badgeScaleAnim,
-}: {
-  triggerRef: React.MutableRefObject<(p: FlyPayload) => void>;
-  cartIconRef: React.RefObject<View>;
-  cartScaleAnim: Animated.Value;
-  badgeScaleAnim: Animated.Value;
-}) {
-  const C = useColors();
-  const overlayS = createOverlayStyles(C);
-  const [thumbs, setThumbs] = useState<FlyingThumb[]>([]);
-  const addThumb    = useCallback((t: FlyingThumb) => setThumbs((p) => [...p, t]), []);
-  const removeThumb = useCallback((id: number) => setThumbs((p) => p.filter((t) => t.id !== id)), []);
-
-  useEffect(() => {
-    triggerRef.current = ({ imageUri, sourceRef }: FlyPayload) => {
-      if (!cartIconRef.current || !sourceRef.current) return;
-      sourceRef.current.measureInWindow((sx, sy, sw, sh) => {
-        cartIconRef.current!.measureInWindow((cx, cy, cw, ch) => {
-          const startX = sx + sw / 2 - 24;
-          const startY = sy + sh * 0.3;
-          const endX   = cx + cw / 2 - 24;
-          const endY   = cy + ch / 2 - 24;
-          const progress = new Animated.Value(0);
-          const opacity  = new Animated.Value(1);
-          const scale    = new Animated.Value(1);
-          const rotate   = new Animated.Value(0);
-          const id       = ++_flyId;
-          addThumb({ id, imageUri, startX, startY, endX, endY, progress, opacity, scale, rotate });
-          Animated.parallel([
-            Animated.timing(progress, { toValue: 1, duration: 620, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-            Animated.timing(scale,    { toValue: 0.7, duration: 620, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-            Animated.sequence([
-              Animated.timing(opacity, { toValue: 0.9, duration: 380, useNativeDriver: true }),
-              Animated.timing(opacity, { toValue: 0,   duration: 240, useNativeDriver: true }),
-            ]),
-            Animated.timing(rotate, { toValue: 1, duration: 620, useNativeDriver: true }),
-          ]).start(() => {
-            removeThumb(id);
-            Animated.sequence([
-              Animated.timing(cartScaleAnim, { toValue: 1.12, duration: 120, useNativeDriver: true }),
-              Animated.spring(cartScaleAnim, { toValue: 1, friction: 4, tension: 200, useNativeDriver: true }),
-            ]).start();
-            badgeScaleAnim.setValue(0.5);
-            Animated.spring(badgeScaleAnim, { toValue: 1, friction: 3.5, tension: 200, useNativeDriver: true }).start();
-          });
-        });
-      });
-    };
-  }, [addThumb, removeThumb, cartIconRef, cartScaleAnim, badgeScaleAnim, triggerRef]);
-
-  return (
-    <>
-      {thumbs.map((thumb) => {
-        const dx        = thumb.endX - thumb.startX;
-        const dy        = thumb.endY - thumb.startY;
-        const arcHeight = Math.min(Math.abs(dy) * 0.8, 130);
-        const translateX = thumb.progress.interpolate({ inputRange: [0, 1], outputRange: [0, dx] });
-        const translateY = thumb.progress.interpolate({
-          inputRange:  [0, 0.3, 0.6, 1],
-          outputRange: [0, dy * 0.3 - arcHeight, dy * 0.6 - arcHeight * 0.5, dy],
-        });
-        const rotateInterp = thumb.rotate.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '4deg'] });
-        return (
-          <Animated.View
-            key={thumb.id} pointerEvents="none"
-            style={[overlayS.thumb, {
-              position: 'absolute', left: thumb.startX, top: thumb.startY,
-              opacity: thumb.opacity,
-              transform: [{ translateX }, { translateY }, { scale: thumb.scale }, { rotate: rotateInterp }],
-            }]}
-          >
-            {thumb.imageUri
-              ? <Image source={thumb.imageUri} style={overlayS.thumbImage} contentFit="cover" cachePolicy="memory-disk" />
-              : <View style={overlayS.thumbPlaceholder}><Text style={overlayS.thumbGlyph}>◆</Text></View>
-            }
-            <Animated.View style={[overlayS.glow, { opacity: thumb.opacity }]} />
-          </Animated.View>
-        );
-      })}
-    </>
-  );
-}
-
-function CartAnimationProvider({
-  children, cartIconRef, cartScaleAnim, badgeScaleAnim,
-}: {
-  children: React.ReactNode;
-  cartIconRef: React.RefObject<View>;
-  cartScaleAnim: Animated.Value;
-  badgeScaleAnim: Animated.Value;
-}) {
-  const triggerRef = useRef<(p: FlyPayload) => void>(() => {});
-  const ctx: CartAnimCtx = useMemo(() => ({
-    triggerFlyToCart: (p) => triggerRef.current(p),
-    cartIconRef, cartScaleAnim, badgeScaleAnim,
-  }), [cartIconRef, cartScaleAnim, badgeScaleAnim]);
-
-  return (
-    <CartAnimationContext.Provider value={ctx}>
-      {children}
-      <CartAnimationOverlayConnected
-        triggerRef={triggerRef}
-        cartIconRef={cartIconRef}
-        cartScaleAnim={cartScaleAnim}
-        badgeScaleAnim={badgeScaleAnim}
-      />
-    </CartAnimationContext.Provider>
-  );
-}
-
-function createOverlayStyles(c) {
-  return StyleSheet.create({
-    thumb: {
-      width: 48, height: 48, borderRadius: 10,
-      backgroundColor: c.PAPER,
-      overflow: 'hidden',
-      shadowColor: c.NAVY_DEEP, shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.2, shadowRadius: 10, elevation: 8, zIndex: 9999,
-    },
-    thumbImage: { width: '100%', height: '100%' },
-    thumbPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.TINT },
-    thumbGlyph: { fontFamily: 'CormorantGaramond_600SemiBold', fontSize: 16, color: c.GOLD_DEEP },
-    glow: {
-      ...StyleSheet.absoluteFillObject, borderRadius: 10,
-      backgroundColor: 'transparent',
-      shadowColor: c.NAVY_DEEP, shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: 0.3, shadowRadius: 14,
-    },
-  });
-}
-
-/* ─── Shimmer bar (mirrors CatalogDetailsScreen) ─── */
-function ShimmerBar() {
-  const shimmer    = useShimmer(2400);
-  const translateX = shimmer.interpolate({ inputRange: [0, 1], outputRange: [-200, 300] });
-  return (
-    <Animated.View style={[shimmerStyles.bar, { transform: [{ translateX }] }]} />
-  );
-}
-function createShimmerStyles() {
-  return StyleSheet.create({
-    bar: {
-      position: 'absolute', top: 0, bottom: 0, width: 80,
-      backgroundColor: 'rgba(255,255,255,0.25)',
-      transform: [{ skewX: '-20deg' }],
-    },
-  });
-}
-const shimmerStyles = createShimmerStyles();
 
 /* ═══════════════════════════════════════════════════════════════
    Main Screen
@@ -382,6 +178,8 @@ const wishlistItems  = useWishlistStore((s) => s.items);
   const cartIconRef    = useRef<View>(null);
   const cartScaleAnim  = useRef(new Animated.Value(1)).current;
   const badgeScaleAnim = useRef(new Animated.Value(1)).current;
+  const imageRefs      = useRef<Record<number, React.RefObject<View>>>({});
+  const rawIndexRef    = useRef(0);
 
   useEffect(() => {
     activeIndexRef.current = activeIndex;
@@ -485,6 +283,7 @@ const wishlistItems  = useWishlistStore((s) => s.items);
       const len = designs.length;
       if (len === 0) return;
 
+      rawIndexRef.current = rawIndex;
       setActiveIndex(rawIndex % len);
     },
     [designs.length]
@@ -520,7 +319,6 @@ const wishlistItems  = useWishlistStore((s) => s.items);
         total={designs.length}
         bottomInset={insets.bottom}
         onOpenModal={openModal}
-        onAddToCart={handleAddToCart}
         isWishlisted={hasWishlist(item._id)}
         onToggleWishlist={(d) => toggleWishlist({
           _id: d._id,
@@ -529,10 +327,10 @@ const wishlistItems  = useWishlistStore((s) => s.items);
           weight: d.weight,
           imageUrl: d.imageUrl,
         })}
-        isInCart={cartItems.some((i) => i._id === item._id)}
+        setImageRef={(ref) => { imageRefs.current[index] = ref; }}
       />
     ),
-    [openModal, handleAddToCart, designs.length, insets.bottom, hasWishlist, toggleWishlist, cartItems]
+    [openModal, designs.length, insets.bottom, hasWishlist, toggleWishlist, imageRefs]
   );
 
   /* ── Loading state ── */
@@ -601,7 +399,7 @@ const wishlistItems  = useWishlistStore((s) => s.items);
           colors={[C.GRADIENT_A, C.GRADIENT_B, C.GRADIENT_C]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={[styles.headerBlock, { paddingTop: insets.top + 14 }]}
+          style={[styles.headerBlock, { marginTop: insets.top + 12 }]}
         >
           {/* Title row */}
           <View style={styles.headerInner}>
@@ -617,7 +415,14 @@ const wishlistItems  = useWishlistStore((s) => s.items);
 
             {/* Title + counter */}
             <View style={styles.headerTitleWrap}>
-              <Text style={styles.mainTitle} numberOfLines={2}>{headerTitle}</Text>
+              <Text
+                style={styles.mainTitle}
+                numberOfLines={2}
+                adjustsFontSizeToFit
+                minimumFontScale={0.5}
+              >
+                {headerTitle}
+              </Text>
               {designs.length > 1 && (
                 <View style={styles.counterRow}>
                   <Text style={styles.counterText}>
@@ -647,12 +452,7 @@ const wishlistItems  = useWishlistStore((s) => s.items);
                 style={styles.cartBtn}
                 collapsable={false}
               >
-                <Image
-                  source={CartIcon}
-                  style={{ width: 36, height: 36 }}
-                  contentFit="contain"
-                />
-                <Text style={styles.cartLabel}>My Order</Text>
+                <Feather name="shopping-bag" size={24} color="#FFFFFF" />
                 {cartCount > 0 && (
                   <Animated.View style={[styles.badge, { transform: [{ scale: badgeScaleAnim }] }]}>
                     <Text style={styles.badgeText}>{cartCount > 99 ? '99+' : cartCount}</Text>
@@ -670,7 +470,8 @@ const wishlistItems  = useWishlistStore((s) => s.items);
             — snapToAlignment "center" ensures pages lock flush to screen edges
             — `designs` is already scoped to the forwarded filter, so paging
               naturally only moves through the filtered set            ── */}
-        <FlatList<Design>
+        <View style={styles.body}>
+          <FlatList<Design>
           ref={flatListRef}
           data={loopedDesigns}
           keyExtractor={keyExtractor}
@@ -697,6 +498,17 @@ const wishlistItems  = useWishlistStore((s) => s.items);
           initialNumToRender={Math.min(loopedDesigns.length, 5)}
           style={{ flex: 1 }}
         />
+
+        <FooterActionTray
+          item={activeDesign}
+          isInCart={activeDesign ? cartItems.some((i) => i._id === activeDesign._id) : false}
+          isSold={activeDesign?.status === 'sold'}
+          bottomInset={insets.bottom}
+          imageRefs={imageRefs}
+          rawIndexRef={rawIndexRef}
+          onAddToCart={handleAddToCart}
+        />
+        </View>
       </View>
     </CartAnimationProvider>
   );
@@ -713,50 +525,22 @@ interface DesignPageProps {
   total: number;
   bottomInset: number;
   onOpenModal: (url: string | null) => void;
-  onAddToCart: (item: Design) => void;
   isWishlisted: boolean;
   onToggleWishlist: (item: Design) => void;
-  isInCart: boolean;
+  setImageRef: (ref: React.RefObject<View>) => void;
 }
 
-function DesignPage({ item, index, total, bottomInset, onOpenModal, onAddToCart, isWishlisted, onToggleWishlist, isInCart }: DesignPageProps) {
+function DesignPage({ item, index, total, bottomInset, onOpenModal, isWishlisted, onToggleWishlist, setImageRef }: DesignPageProps) {
   const C = useColors();
   const pageS = createPageStyles(C);
-  const { triggerFlyToCart } = useCartAnimation();
 
   const finalImageUrl = buildImageUrl(item.imageUrl);
-  const isSold        = item.status === 'sold';
 
-  const btnScaleAnim = useRef(new Animated.Value(1)).current;
-  const btnBgAnim    = useRef(new Animated.Value(0)).current;
-  const addingRef    = useRef(false);
   const imageWrapperRef = useRef<View>(null);
 
-  const btnBg = btnBgAnim.interpolate({
-    inputRange:  [0, 1],
-    outputRange: [C.NAVY, C.NAVY_DEEP],
-  });
-
-  const handleAddPress = useCallback(() => {
-    if (isSold || addingRef.current) return;
-    addingRef.current = true;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-
-    Animated.sequence([
-      Animated.parallel([
-        Animated.timing(btnScaleAnim, { toValue: 0.97, duration: 80, useNativeDriver: true }),
-        Animated.timing(btnBgAnim,    { toValue: 1,    duration: 80, useNativeDriver: false }),
-      ]),
-      Animated.parallel([
-        Animated.timing(btnScaleAnim, { toValue: 1, duration: 100, easing: Easing.out(Easing.back(1.5)), useNativeDriver: true }),
-        Animated.timing(btnBgAnim,    { toValue: 0, duration: 200, useNativeDriver: false }),
-      ]),
-    ]).start();
-
-    triggerFlyToCart({ imageUri: finalImageUrl, sourceRef: imageWrapperRef as React.RefObject<View> });
-    onAddToCart(item);
-    setTimeout(() => { addingRef.current = false; }, 100);
-  }, [isSold, finalImageUrl, triggerFlyToCart, onAddToCart, item, btnScaleAnim, btnBgAnim]);
+  useEffect(() => {
+    setImageRef(imageWrapperRef);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     /* Outer View fills the pager slot exactly — no scroll */
@@ -765,84 +549,14 @@ function DesignPage({ item, index, total, bottomInset, onOpenModal, onAddToCart,
 
         {/* indexNum removed — counter lives in the header */}
 
-{finalImageUrl ? (
-          <TouchableOpacity
-            ref={imageWrapperRef}
-            collapsable={false}
-            activeOpacity={0.96}
-            onPress={() => onOpenModal(finalImageUrl)}
-            style={pageS.imageWrapper}
-          >
-            <Image
-              source={finalImageUrl}
-              style={pageS.image}
-              contentFit="contain"
-              cachePolicy="memory-disk"
-              transition={200}
-            />
-            {/* Subtle gold rule under image */}
-            <View style={pageS.imageRule} />
-
-            {/* Wishlist heart — floating top-right corner */}
-            <TouchableOpacity
-              onPress={(e) => { e.stopPropagation(); onToggleWishlist(item); }}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              style={pageS.wishlistBtn}
-            >
-              <Text style={[pageS.wishlistGlyph, isWishlisted && pageS.wishlistActive]}>
-                {isWishlisted ? '♥' : '♡'}
-              </Text>
-            </TouchableOpacity>
-          </TouchableOpacity>
-        ) : (
-          <View ref={imageWrapperRef} collapsable={false} style={pageS.noImageBox}>
-            <Text style={pageS.noImageGlyph}>◆</Text>
-            <Text style={pageS.noImageLabel}>No image</Text>
-          </View>
-        )}
-
-        {/* ── Design name ── */}
-
-
-        {/* ── Spec grid — SKU + Weight only ── */}
-        <View style={pageS.specsRow}>
-          <View style={pageS.specCell}>
-            <Text style={pageS.specLabel}>SKU</Text>
-            <Text style={pageS.specValue}>{item.sku}</Text>
-          </View>
-          <View style={pageS.specDivider} />
-          <View style={pageS.specCell}>
-            <Text style={pageS.specLabel}>Weight</Text>
-            <Text style={pageS.specValue}>{item.weight}g</Text>
-          </View>
-        </View>
-
-{/* ── Actions ── */}
-        <View style={[pageS.actions, { paddingBottom: Math.max(bottomInset, 16) }]}>
-          <View style={pageS.actionsRule} />
-
-          {/* Primary CTA — Add to Cart */}
-          {isInCart ? (
-            <View style={[pageS.primaryBtn, pageS.primaryBtnAdded]}>
-              <Text style={pageS.primaryBtnTextAdded}>Added ✓</Text>
-            </View>
-          ) : (
-            <Animated.View style={{ transform: [{ scale: btnScaleAnim }] }}>
-              <TouchableOpacity activeOpacity={1} onPress={handleAddPress} disabled={isSold}>
-                <Animated.View style={[
-                  pageS.primaryBtn,
-                  isSold && pageS.primaryBtnSold,
-                  !isSold && { backgroundColor: btnBg as any },
-                ]}>
-                  <Text style={[pageS.primaryBtnText, isSold && pageS.primaryBtnTextSold]}>
-                    {isSold ? 'Sold Out' : 'Add to Order'}
-                  </Text>
-                  {!isSold && <Text style={pageS.primaryBtnGlyph}>↗</Text>}
-                </Animated.View>
-              </TouchableOpacity>
-            </Animated.View>
-          )}
-        </View>
+        <ImageGallery
+          finalImageUrl={finalImageUrl}
+          imageWrapperRef={imageWrapperRef}
+          onOpenModal={onOpenModal}
+          item={item}
+          isWishlisted={isWishlisted}
+          onToggleWishlist={onToggleWishlist}
+        />
 
       </View>
     </View>
@@ -868,177 +582,83 @@ function createPageStyles(c) {
     },
 
     /* Image wrapper — flex: 1, rounded */
-imageWrapper: {
-      flex: 1,
-      minHeight: 120,
-      backgroundColor: c.NAVY_DEEP,
-      borderRadius: 18,
-      marginBottom: 0,
-      overflow: 'hidden',
-      shadowColor: c.NAVY_DEEP,
-      shadowOffset: { width: 0, height: 3 },
-      shadowOpacity: 0.08,
-      shadowRadius: 6,
-      elevation: 3,
-    },
-    image: {
-      width: '100%',
-      height: '100%',
-    },
-    imageRule: {
-      height: 3,
-      width: 24,
-      backgroundColor: c.GOLD_DEEP,
-      borderRadius: 2,
-      marginLeft: 8,
-    },
-    noImageBox: {
-      flex: 1,
-      minHeight: 120,
-      backgroundColor: c.TINT,
-      borderRadius: 18,
-      alignItems: 'center', justifyContent: 'center',
-      marginBottom: 0, gap: 12,
-    },
-    noImageGlyph: {
-      fontFamily: 'CormorantGaramond_300Light',
-      fontSize: 30, color: c.GOLD_DEEP, opacity: 0.4,
-    },
-    noImageLabel: {
-      fontFamily: 'Outfit_300Light',
-      fontSize: 9, letterSpacing: 3,
-      textTransform: 'uppercase', color: c.MUTED,
-    },
 
-    /* Name — flush under image, tight above specs */
-/* Name — flush under image, tight above specs */
-    nameSection: { marginTop: 4, marginBottom: 2, gap: 2 },
-    designName: {
-      fontFamily: 'CormorantGaramond_600SemiBold',
-      fontSize: 28, lineHeight: 30,
-      letterSpacing: -0.5, color: c.INK,
-    },
-    goldRule: {
-      width: 28, height: 1,
-      backgroundColor: c.GOLD_DEEP,
-      opacity: 0.6,
-    },
-
-    /* Spec grid — rounded */
-specsRow: {
-      flexDirection: 'row',
-      borderRadius: 12,
-      borderWidth: 1, borderColor: c.BORDER_SOFT,
-      marginTop: 0,
-      marginBottom: 4,
-      backgroundColor: c.TINT,
-      overflow: 'hidden',
-    },
-    specCell: {
-      flex: 1,
-      paddingVertical: 10, paddingHorizontal: 12,
-      gap: 4,
-    },
-    specDivider: {
-      width: 1, backgroundColor: c.BORDER_SOFT,
-    },
-    specLabel: {
-      fontFamily: 'Outfit_600SemiBold',
-      fontSize: 9, letterSpacing: 1.5,
-      textTransform: 'uppercase', color: c.MUTED,
-    },
-    specValue: {
-      fontFamily: 'CormorantGaramond_600SemiBold',
-      fontSize: 16, color: c.INK,
-      letterSpacing: -0.2,
-    },
-
-    /* Actions — single button */
-    actions: {
-      gap: 8,
-    },
-    actionsRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'flex-end',
-      marginBottom: 4,
-    },
-wishlistBtn: {
-      position: 'absolute',
-      top: 12, right: 12,
-      width: 40, height: 40,
-      borderRadius: 20,
-      backgroundColor: 'rgba(255,255,255,0.9)',
-      alignItems: 'center', justifyContent: 'center',
-      shadowColor: c.NAVY_DEEP,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.15,
-      shadowRadius: 4,
-      elevation: 3,
-      zIndex: 10,
-    },
-    wishlistGlyph: {
-      fontSize: 22, lineHeight: 24, color: c.MUTED,
-    },
-    wishlistActive: {
-      color: c.HEART_ACTIVE,
-    },
-    actionsRule: {
-      height: 1,
-      backgroundColor: c.GOLD_DEEP,
-      opacity: 0.3,
-      marginBottom: 4,
-    },
-    primaryBtn: {
-      height: 50,
-      borderRadius: 14,
-      flexDirection: 'row', alignItems: 'center',
-      justifyContent: 'center', gap: 10,
-      backgroundColor: c.BURGUNDY,
-      shadowColor: c.NAVY_DEEP,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.12,
-      shadowRadius: 8,
-      elevation: 3,
-    },
-    primaryBtnAdded: {
-      backgroundColor: c.NAVY_DEEP,
-      opacity: 0.5,
-      shadowOpacity: 0,
-      elevation: 0,
-    },
-    primaryBtnSold: {
-      backgroundColor: 'transparent',
-      borderWidth: 1, borderColor: c.BORDER_SOFT,
-      shadowOpacity: 0,
-      elevation: 0,
-    },
-    primaryBtnText: {
-      fontFamily: 'Outfit_600SemiBold',
-      fontSize: 11, letterSpacing: 1.5,
-      textTransform: 'uppercase', color: '#FFFFFF',
-    },
-    primaryBtnTextSold: { color: c.MUTED },
-    primaryBtnTextAdded: {
-      fontFamily: 'Outfit_600SemiBold',
-      fontSize: 11, letterSpacing: 1.5,
-      textTransform: 'uppercase', color: c.MUTED,
-    },
-    primaryBtnGlyph: {
-      fontSize: 12, color: c.GOLD, lineHeight: 14,
-    },
   });
+}
+
+function FooterActionTray({ item, isInCart, isSold, bottomInset, imageRefs, rawIndexRef, onAddToCart }: any) {
+  const C = useColors();
+  const { triggerFlyToCart } = useCartAnimation();
+
+  const btnScaleAnim = useRef(new Animated.Value(1)).current;
+  const btnBgAnim    = useRef(new Animated.Value(0)).current;
+  const addingRef    = useRef(false);
+
+  const btnBg = btnBgAnim.interpolate({
+    inputRange:  [0, 1],
+    outputRange: [C.NAVY, C.NAVY_DEEP],
+  });
+
+  const handleAddPress = useCallback(() => {
+    if (!item || isSold || addingRef.current) return;
+    addingRef.current = true;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+
+    Animated.sequence([
+      Animated.parallel([
+        Animated.timing(btnScaleAnim, { toValue: 0.97, duration: 80, useNativeDriver: true }),
+        Animated.timing(btnBgAnim,    { toValue: 1,    duration: 80, useNativeDriver: false }),
+      ]),
+      Animated.parallel([
+        Animated.timing(btnScaleAnim, { toValue: 1, duration: 100, easing: Easing.out(Easing.back(1.5)), useNativeDriver: true }),
+        Animated.timing(btnBgAnim,    { toValue: 0, duration: 200, useNativeDriver: false }),
+      ]),
+    ]).start();
+
+    const activeImageRef = imageRefs.current[rawIndexRef.current];
+    triggerFlyToCart({ imageUri: buildImageUrl(item.imageUrl), sourceRef: activeImageRef });
+    onAddToCart(item);
+    setTimeout(() => { addingRef.current = false; }, 100);
+  }, [item, isSold, triggerFlyToCart, onAddToCart, btnScaleAnim, btnBgAnim, imageRefs, rawIndexRef]);
+
+  if (!item) return null;
+
+  return (
+    <ActionTray
+      item={item}
+      isInCart={isInCart}
+      isSold={isSold}
+      bottomInset={bottomInset}
+      btnScaleAnim={btnScaleAnim}
+      btnBg={btnBg}
+      onAddToCart={handleAddPress}
+    />
+  );
 }
 
 /* ─── Global Styles ─── */
 function createStyles(c) {
   return StyleSheet.create({
     safe: { flex: 1, backgroundColor: c.NAVY_DEEP },
+    body: {
+      flex: 1,
+      backgroundColor: c.CREAM,
+      borderTopWidth: 4,
+      borderTopColor: '#0A0A0B',
+    },
 
     /* ── Gradient header (matches CatalogsScreen) ── */
     headerBlock: {
+      marginHorizontal: 16,
+      marginBottom: 16,
       paddingHorizontal: 20,
-      paddingBottom: 22
+      paddingVertical: 20,
+      borderRadius: 32,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 16 },
+      shadowOpacity: 0.25,
+      shadowRadius: 24,
+      elevation: 12,
     },
     eyebrowText: {
       fontFamily: 'Outfit_600SemiBold',
@@ -1107,17 +727,11 @@ function createStyles(c) {
 
     /* Cart button */
     cartBtn: {
-      width: 72, height: 72,
+      width: 56, height: 56,
       borderRadius: 16,
       backgroundColor: 'rgba(255,255,255,0.18)',
       alignItems: 'center', justifyContent: 'center',
-      gap: 2,
-    },
-    cartLabel: {
-      fontFamily: 'Outfit_600SemiBold',
-      fontSize: 12, letterSpacing: 1.5,
-      textTransform: 'uppercase', color: '#0C0C0C',
-      textAlign: 'center',
+      marginTop: 4,
     },
     badge: {
       position: 'absolute', top: -4, right: -4,

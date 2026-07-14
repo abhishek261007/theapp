@@ -46,6 +46,8 @@ import { useColors } from '../colors';
 import { validateOfferCode } from '../services/campaigns';
 import { getOrRegisterPushToken } from '../services/notifications';
 import useCartStore from '../store/cartStore';
+import { CartItemRow, CartItem } from '../components/cart/CartItemRow';
+import { CartSummaryBar } from '../components/cart/CartSummaryBar';
 
 /* ─── Constants ─── */
 const WHATSAPP_NUMBER = '919712779146';
@@ -54,229 +56,7 @@ const H_PADDING  = 24;
 const COLUMN_GAP = 10;
 const CARD_WIDTH = (SCREEN_WIDTH - H_PADDING * 2 - COLUMN_GAP) / 2;
 
-/* ─── Types ─── */
-type CartItem = {
-  _id: string;
-  catalogName?: string;
-  title?: string;
-  sku: string;
-  weight: number | string;
-  imageUrl?: string | null;
-};
 
-/* ─── Pure helper (module-level — never recreated per render) ─── */
-function buildImageUrl(imageUrl?: string | null): string | null {
-  if (!imageUrl) return null;
-  const img = String(imageUrl);
-  if (img.startsWith('http')) return img;
-  return `https://apis.27012610.xyz${img}`;
-}
-
-/* ─── Cart Item Card (compact 2-col) ─── */
-function CartCard({
-  item,
-  index,
-  onRemove,
-}: {
-  item: CartItem;
-  index: number;
-  onRemove: () => void;
-}) {
-  const C = useColors();
-  const cardStyles = createCardStyles(C);
-  const bgAnim = useRef(new Animated.Value(0)).current;
-
-  const onPressIn = useCallback(() =>
-    Animated.timing(bgAnim, {
-      toValue: 1, duration: 200,
-      easing: Easing.out(Easing.ease),
-      useNativeDriver: false,
-    }).start(), [bgAnim]);
-
-  const onPressOut = useCallback(() =>
-    Animated.timing(bgAnim, {
-      toValue: 0, duration: 200,
-      easing: Easing.out(Easing.ease),
-      useNativeDriver: false,
-    }).start(), [bgAnim]);
-
-  const cardBg = bgAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [C.CREAM, C.PAPER],
-  });
-
-  const imageUri = buildImageUrl(item.imageUrl);
-  const isLeft   = index % 2 === 0;
-  const indexStr = index < 9 ? `0${index + 1}` : `${index + 1}`;
-
-  return (
-    <Animated.View
-      style={[
-        cardStyles.card,
-        { backgroundColor: cardBg },
-        isLeft ? { marginRight: COLUMN_GAP / 2 } : { marginLeft: COLUMN_GAP / 2 },
-      ]}
-    >
-      {/* Image */}
-      {imageUri ? (
-        <Image
-          source={{ uri: imageUri }}
-          style={cardStyles.image}
-          resizeMode="cover"
-        />
-      ) : (
-        <View style={cardStyles.imagePlaceholder}>
-          <Text style={cardStyles.placeholderGlyph}>◆</Text>
-        </View>
-      )}
-
-      {/* Index badge */}
-      <View style={cardStyles.indexBadge}>
-        <Text style={cardStyles.indexText}>{indexStr}</Text>
-      </View>
-
-      {/* Body */}
-      <View style={cardStyles.body}>
-        <Text style={cardStyles.title} numberOfLines={2}>
-          {item.catalogName || item.title || 'Design'}
-        </Text>
-
-        {/* Chips */}
-        <View style={cardStyles.chipsRow}>
-          <View style={cardStyles.chip}>
-            <Text style={cardStyles.chipLabel}>Tag</Text>
-            <Text style={cardStyles.chipValue} numberOfLines={1}>{item.sku}</Text>
-          </View>
-          <View style={cardStyles.chip}>
-            <Text style={cardStyles.chipLabel}>Wt</Text>
-            <Text style={cardStyles.chipValue}>{item.weight}g</Text>
-          </View>
-        </View>
-
-        {/* Remove */}
-        <TouchableOpacity
-          onPress={onRemove}
-          onPressIn={onPressIn}
-          onPressOut={onPressOut}
-          activeOpacity={1}
-          style={cardStyles.removeBtn}
-        >
-          <Text style={cardStyles.removeBtnText}>Remove</Text>
-          <Text style={cardStyles.removeBtnGlyph}>✕</Text>
-        </TouchableOpacity>
-      </View>
-    </Animated.View>
-  );
-}
-
-function createCardStyles(c) {
-  return StyleSheet.create({
-    card: {
-      width: CARD_WIDTH,
-      borderRadius: 18,
-      backgroundColor: c.PAPER,
-      marginBottom: COLUMN_GAP,
-      overflow: 'hidden',
-      shadowColor: c.NAVY_DEEP,
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.1,
-      shadowRadius: 12,
-      elevation: 4,
-    },
-    image: {
-      width: '100%',
-      height: CARD_WIDTH * 1.1,
-      backgroundColor: c.TINT,
-    },
-    imagePlaceholder: {
-      width: '100%',
-      height: CARD_WIDTH * 0.8,
-      backgroundColor: c.TINT,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    placeholderGlyph: {
-      fontFamily: 'CormorantGaramond_600SemiBold',
-      fontSize: 28,
-      color: c.GOLD_DEEP,
-      opacity: 0.4,
-    },
-    indexBadge: {
-      position: 'absolute',
-      top: 10,
-      left: 10,
-      backgroundColor: 'rgba(255,255,255,0.9)',
-      paddingHorizontal: 6,
-      paddingVertical: 2,
-      borderRadius: 6,
-    },
-    indexText: {
-      fontFamily: 'Outfit_600SemiBold',
-      fontSize: 10,
-      color: c.MUTED,
-      letterSpacing: 0.5,
-    },
-    body: {
-      padding: 10,
-      gap: 8,
-    },
-    title: {
-      fontFamily: 'CormorantGaramond_600SemiBold',
-      fontSize: 16,
-      color: c.INK,
-      lineHeight: 19,
-      letterSpacing: -0.1,
-    },
-    chipsRow: {
-      flexDirection: 'row',
-      gap: 4,
-    },
-    chip: {
-      borderRadius: 8,
-      borderWidth: 1,
-      borderColor: c.BORDER_SOFT,
-      backgroundColor: c.TINT,
-      paddingHorizontal: 6,
-      paddingVertical: 4,
-      flex: 1,
-    },
-    chipLabel: {
-      fontFamily: 'Outfit_600SemiBold',
-      fontSize: 7.5,
-      letterSpacing: 1.6,
-      textTransform: 'uppercase',
-      color: c.MUTED,
-      marginBottom: 1,
-    },
-    chipValue: {
-      fontFamily: 'Outfit_400Regular',
-      fontSize: 10,
-      color: c.INK,
-      letterSpacing: 0.1,
-    },
-    removeBtn: {
-      borderRadius: 10,
-      borderWidth: 1,
-      borderColor: c.BURGUNDY,
-      height: 36,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 6,
-    },
-    removeBtnText: {
-      fontFamily: 'Outfit_600SemiBold',
-      fontSize: 9,
-      letterSpacing: 2,
-      textTransform: 'uppercase',
-      color: c.BURGUNDY,
-    },
-    removeBtnGlyph: {
-      fontSize: 9,
-      color: c.BURGUNDY,
-    },
-  });
-}
 
 /* ─── Main Screen ─── */
 export default function CartScreen() {
@@ -381,7 +161,7 @@ export default function CartScreen() {
         colors={[C.GRADIENT_A, C.GRADIENT_B, C.GRADIENT_C]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={[styles.header, { paddingTop: insets.top + 14 }]}
+        style={[styles.header, { marginTop: insets.top + 12 }]}
       >
         <TouchableOpacity
           onPress={() => router.back()}
@@ -410,6 +190,7 @@ export default function CartScreen() {
         )}
       </LinearGradient>
 
+      <View style={styles.body}>
       {/* ── Empty State ── */}
       {items.length === 0 ? (
         <View style={styles.emptyBox}>
@@ -445,29 +226,7 @@ export default function CartScreen() {
             columnWrapperStyle={styles.columnWrapper}
             contentContainerStyle={styles.listContent}
             keyboardShouldPersistTaps="handled"
-            ListHeaderComponent={
-              /* ── Summary strip ── */
-              <View style={styles.summaryStrip}>
-                <View style={styles.summaryCell}>
-                  <Text style={styles.summaryLabel}>Items</Text>
-                  <Text style={styles.summaryValue}>{items.length}</Text>
-                </View>
-                <View style={styles.summarySep} />
-                <View style={styles.summaryCell}>
-                  <Text style={styles.summaryLabel}>Total Weight</Text>
-                  <Text style={styles.summaryValue}>
-                    {items.reduce((acc: number, i: CartItem) => acc + (parseFloat(String(i.weight)) || 0), 0).toFixed(1)}g
-                  </Text>
-                </View>
-                <View style={styles.summarySep} />
-                <View style={styles.summaryCell}>
-                  <Text style={styles.summaryLabel}>Collections</Text>
-                  <Text style={styles.summaryValue}>
-                    {new Set(items.map((i: CartItem) => i.catalogName)).size}
-                  </Text>
-                </View>
-              </View>
-            }
+            ListHeaderComponent={<CartSummaryBar items={items} />}
             ListFooterComponent={
               <View style={styles.footer}>
                 <TextInput
@@ -539,7 +298,7 @@ export default function CartScreen() {
               </View>
             }
             renderItem={({ item, index }: { item: CartItem; index: number }) => (
-              <CartCard
+              <CartItemRow
                 item={item}
                 index={index}
                 onRemove={() => removeFromCart(item._id)}
@@ -548,6 +307,7 @@ export default function CartScreen() {
           />
         </KeyboardAvoidingView>
       )}
+      </View>
     </View>
   );
 }
@@ -558,15 +318,29 @@ function createStyles(c) {
   return StyleSheet.create({
     safe: {
       flex: 1,
+      backgroundColor: c.NAVY_DEEP,
+    },
+    body: {
+      flex: 1,
       backgroundColor: c.CREAM,
+      borderTopWidth: 4,
+      borderTopColor: '#0A0A0B',
     },
 
-    /* Header — gradient, paddingTop applied inline */
+    /* Header — floating pill */
     header: {
       flexDirection: 'row',
       alignItems: 'center',
+      marginHorizontal: 16,
+      marginBottom: 16,
       paddingHorizontal: H_PADDING,
-      paddingBottom: 22,
+      paddingVertical: 16,
+      borderRadius: 32,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 16 },
+      shadowOpacity: 0.25,
+      shadowRadius: 24,
+      elevation: 12,
       gap: 14
     },
     backBtn: {
@@ -617,39 +391,7 @@ function createStyles(c) {
       color: '#FFFFFF',
     },
 
-    /* Summary strip */
-    summaryStrip: {
-      flexDirection: 'row',
-      backgroundColor: c.BORDER_SOFT,
-      gap: 1.5,
-      marginBottom: 1.5,
-      marginHorizontal: H_PADDING,
-    },
-    summaryCell: {
-      flex: 1,
-      backgroundColor: c.PAPER,
-      paddingVertical: 16,
-      paddingHorizontal: 14,
-      gap: 4,
-      alignItems: 'center',
-    },
-    summarySep: {
-      width: 1.5,
-      backgroundColor: c.BORDER_SOFT,
-    },
-    summaryLabel: {
-      fontFamily: 'Outfit_600SemiBold',
-      fontSize: 10,
-      letterSpacing: 1.5,
-      textTransform: 'uppercase',
-      color: c.MUTED,
-    },
-    summaryValue: {
-      fontFamily: 'CormorantGaramond_600SemiBold',
-      fontSize: 22,
-      color: c.INK,
-      letterSpacing: -0.2,
-    },
+
     input: {
       height: 54,
       borderRadius: 14,
