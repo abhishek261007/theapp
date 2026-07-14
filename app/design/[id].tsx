@@ -82,6 +82,8 @@ type RouteParams = {
 
 /* ─── Constants ─── */
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
+const LOOP_COPIES = 5;
+const LOOP_MIDDLE_COPY = Math.floor(LOOP_COPIES / 2);
 
 const VIEWABILITY_CONFIG: ViewabilityConfig = {
   itemVisiblePercentThreshold: 20,
@@ -352,12 +354,13 @@ export default function DesignDetailsScreen() {
   const [designs, setDesigns]         = useState<Design[]>([]);
   const [loading, setLoading]         = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
+  const activeIndexRef = useRef(0);
 
   const loopedDesigns = useMemo(
-    () => designs.length > 1 ? [...designs, ...designs, ...designs] : designs,
+    () => designs.length > 1 ? Array.from({ length: LOOP_COPIES }, () => designs).flat() : designs,
     [designs]
   );
-  const initialScrollIndex = designs.length > 1 ? designs.length + activeIndex : activeIndex;
+  const initialScrollIndex = designs.length > 1 ? (designs.length * LOOP_MIDDLE_COPY) + activeIndex : activeIndex;
 
   const [modalVisible, setModalVisible]   = useState(false);
   const [modalImageUrl, setModalImageUrl] = useState<string | null>(null);
@@ -379,6 +382,10 @@ const wishlistItems  = useWishlistStore((s) => s.items);
   const cartIconRef    = useRef<View>(null);
   const cartScaleAnim  = useRef(new Animated.Value(1)).current;
   const badgeScaleAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    activeIndexRef.current = activeIndex;
+  }, [activeIndex]);
 
   /* ── Active design for header title ── */
   const activeDesign = designs[activeIndex] ?? null;
@@ -429,8 +436,9 @@ const wishlistItems  = useWishlistStore((s) => s.items);
 
   /* ── Scroll to active only when designs first load ── */
   useEffect(() => {
-    if (designs.length > 0 && activeIndex >= 0 && activeIndex < designs.length) {
-      const target = designs.length > 1 ? designs.length + activeIndex : activeIndex;
+    const index = activeIndexRef.current;
+    if (designs.length > 0 && index >= 0 && index < designs.length) {
+      const target = designs.length > 1 ? (designs.length * LOOP_MIDDLE_COPY) + index : index;
       flatListRef.current?.scrollToIndex({ index: target, animated: false });
     }
   }, [designs]);
@@ -491,13 +499,13 @@ const wishlistItems  = useWishlistStore((s) => s.items);
       const len = designs.length;
       if (len <= 1) return;
 
-      // Warp back to the middle copy only when clearly outside it
-      if (rawPage < len - 0.5) {
-        const page = Math.round(rawPage);
-        flatListRef.current?.scrollToIndex({ index: len + page, animated: false });
-      } else if (rawPage >= len * 2 - 0.5) {
-        const page = Math.round(rawPage);
-        flatListRef.current?.scrollToIndex({ index: len + (page % len), animated: false });
+      const page = Math.round(rawPage);
+      const normalizedPage = ((page % len) + len) % len;
+      const centeredPage = (len * LOOP_MIDDLE_COPY) + normalizedPage;
+      if (page !== centeredPage) {
+        requestAnimationFrame(() => {
+          flatListRef.current?.scrollToIndex({ index: centeredPage, animated: false });
+        });
       }
     },
     [designs.length]
@@ -685,8 +693,8 @@ const wishlistItems  = useWishlistStore((s) => s.items);
           extraData={loopedDesigns}
           bounces={false}
           maxToRenderPerBatch={5}
-          windowSize={7}
-          initialNumToRender={1}
+          windowSize={11}
+          initialNumToRender={Math.min(loopedDesigns.length, 5)}
           style={{ flex: 1 }}
         />
       </View>

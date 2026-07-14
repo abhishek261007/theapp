@@ -43,6 +43,7 @@ import ScratchOfferCard from '../../components/ScratchOfferCard';
 import { useColors } from '../../colors';
 import { ActiveCampaign, fetchActiveCampaign } from '../../services/campaigns';
 import api from '../../services/api';
+import useCartStore from '../../store/cartStore';
 const API_BASE = 'https://apis.27012610.xyz';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -66,8 +67,13 @@ type Catalog = {
 
 function buildHeroUrl(heroImageUrl?: string, updatedAt?: string): string | null {
   if (!heroImageUrl) return null;
-  const cacheBuster = updatedAt ? `v=${encodeURIComponent(updatedAt)}` : `v=${Date.now()}`;
-  if (heroImageUrl.startsWith('http')) return `${heroImageUrl}${heroImageUrl.includes('?') ? '&' : '?'}${cacheBuster}`;
+  // Seed the cache-buster from both the file name and updatedAt so it changes
+  // whenever the image content changes (covers re-uploads that reuse a name).
+  const seed = `${heroImageUrl}:${updatedAt ?? ''}`;
+  const cacheBuster = `v=${encodeURIComponent(seed)}`;
+  if (heroImageUrl.startsWith('http')) {
+    return `${heroImageUrl}${heroImageUrl.includes('?') ? '&' : '?'}${cacheBuster}`;
+  }
   return `${API_BASE}${heroImageUrl}?${cacheBuster}`;
 }
 
@@ -221,7 +227,7 @@ const CatalogCard = memo(function CatalogCard({
         {/* Image block */}
         <View style={s.imageWrap}>
           {heroUri ? (
-            <Image source={{ uri: heroUri }} style={s.image} resizeMode="cover" />
+            <Image key={heroUri} source={{ uri: heroUri }} style={s.image} resizeMode="cover" />
           ) : (
             <View style={[s.image, s.placeholderBg, { backgroundColor: accent + '22' }]}>
               <Text style={[s.placeholderGlyph, { color: accent }]}>◆</Text>
@@ -366,27 +372,27 @@ function FooterLinks() {
         <TouchableOpacity
           activeOpacity={0.85}
           onPress={openWhatsApp}
-          style={[s.btn, { backgroundColor: '#25D366' }]}
+          style={[s.btn, { backgroundColor: '#DDF3E7' }]}
         >
-          <FontAwesome name="whatsapp" size={22} color="#FFFFFF" />
+          <FontAwesome name="whatsapp" size={22} color="#2D7A55" />
           <Text style={s.btnLabel}>WhatsApp</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           activeOpacity={0.85}
           onPress={openInstagram}
-          style={[s.btn, { backgroundColor: C.BURGUNDY }]}
+          style={[s.btn, { backgroundColor: '#F3DDE6' }]}
         >
-          <FontAwesome name="instagram" size={22} color="#FFFFFF" />
+          <FontAwesome name="instagram" size={22} color="#8B4562" />
           <Text style={s.btnLabel}>Instagram</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           activeOpacity={0.85}
           onPress={openWeb}
-          style={[s.btn, { backgroundColor: "#0000FF" }]}
+          style={[s.btn, { backgroundColor: '#DDE8F3' }]}
         >
-          <FontAwesome name="globe" size={22} color="#FFFFFF" />
+          <FontAwesome name="globe" size={22} color="#456A8B" />
           <Text style={s.btnLabel}>Website</Text>
         </TouchableOpacity>
       </View>
@@ -438,7 +444,7 @@ function createFooterStyles(c) {
       fontFamily: 'Outfit_600SemiBold',
       fontSize: 10,
       letterSpacing: 0.5,
-      color: '#FFFFFF',
+      color: c.INK,
     },
     tagline: {
       fontFamily: 'CormorantGaramond_500Medium',
@@ -461,12 +467,16 @@ export default function CatalogsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError]           = useState(false);
   const [activeCampaign, setActiveCampaign] = useState<ActiveCampaign | null>(null);
+  const cartCount = useCartStore((s) => s.items.length);
 
   /* ── Data fetching ── */
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (bypass = false) => {
     setError(false);
     try {
-      const res = await api.get('/public/catalogs');
+      const res = await api.get(
+        '/public/catalogs',
+        bypass ? { headers: { 'x-bypass-cache': '1' } } : undefined
+      );
       const data = Array.isArray(res.data) ? (res.data as Catalog[]) : [];
       setCatalogs(data);
       setActiveCampaign(await fetchActiveCampaign());
@@ -484,7 +494,7 @@ export default function CatalogsScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await fetchData();
+    await fetchData(true);
     setRefreshing(false);
   }, [fetchData]);
 
@@ -530,12 +540,17 @@ export default function CatalogsScreen() {
               <Image
                 source={CartIcon}
                 style={{
-                  width: 32,
-                  height: 32,
-                  resizeMode: 'cover',
+                  width: 36,
+                  height: 36,
+                  resizeMode: 'contain',
                 }}
               />
             <Text style={s.cartLabel}>My Order</Text>
+            {cartCount > 0 && (
+              <View style={s.badge}>
+                <Text style={s.badgeText}>{cartCount > 99 ? '99+' : cartCount}</Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
       </LinearGradient>
@@ -637,6 +652,7 @@ function createStyles(c) {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'flex-start',
+      gap: 12,
     },
 
     /* Cart */
@@ -648,16 +664,26 @@ function createStyles(c) {
       alignItems: 'center',
       justifyContent: 'center',
       gap: 2,
-      overflow: 'hidden',
     },
 
     cartLabel: {
       fontFamily: 'Outfit_600SemiBold',
-      fontSize: 8,
+      fontSize: 12,
       letterSpacing: 1.5,
       textTransform: 'uppercase',
       color: '#0C0C0C',
       textAlign: 'center',
+    },
+
+    badge: {
+      position: 'absolute', top: -4, right: -4,
+      width: 18, height: 18, borderRadius: 9,
+      backgroundColor: c.GOLD_DEEP,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    badgeText: {
+      fontFamily: 'Outfit_400Regular',
+      fontSize: 8, color: '#FFFFFF', letterSpacing: 0.2,
     },
 
     /* ── Cream body ── */

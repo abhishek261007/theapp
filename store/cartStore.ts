@@ -10,7 +10,7 @@ type CartItem = {
   catalogName?: string;
 };
 
-type CartStore = {
+export type CartStore = {
   items: CartItem[];
   addToCart: (item: CartItem) => void;
   removeFromCart: (id: string) => void;

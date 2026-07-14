@@ -4,14 +4,12 @@ import { usePreventScreenCapture } from 'expo-screen-capture';
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '../../colors';
-import useAuthStore from '../../store/authStore';
 import useCartStore from '../../store/cartStore';
 
 export default function Layout() {
   usePreventScreenCapture();
   const insets = useSafeAreaInsets();
   const cartCount = useCartStore((s) => s.items.length);
-  const hasRegistered = useAuthStore((s) => s.hasRegistered);
   const C = useColors();
 
   return (
@@ -49,20 +47,6 @@ export default function Layout() {
           title: 'Wishlist',
           tabBarIcon: ({ color, size }) => (
             <FontAwesome name="heart" size={size} color={color} />
-          ),
-        }}
-      />
-
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: hasRegistered ? 'Profile' : 'Register',
-          tabBarIcon: ({ color, size }) => (
-            <FontAwesome
-              name={hasRegistered ? 'user' : 'user-plus'}
-              size={size}
-              color={color}
-            />
           ),
         }}
       />

@@ -311,7 +311,6 @@ export default function CartScreen() {
 
     try {
       const pushToken = await getOrRegisterPushToken();
-
       const response = await fetch('https://apis.27012610.xyz/inquiries/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
