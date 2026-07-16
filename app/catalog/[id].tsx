@@ -131,7 +131,8 @@ export default function CatalogDetailsScreen() {
   const insets     = useSafeAreaInsets();
 
   const [designs, setDesigns]   = useState<Design[]>([]);
-  const validCatalogName = (name && name !== 'undefined') ? name : (designs.length > 0 ? designs[0].catalogName : 'Catalog');
+  const [fetchedCatalogName, setFetchedCatalogName] = useState<string | null>(null);
+  const validCatalogName = (name && name !== 'undefined') ? name : (fetchedCatalogName || 'Catalog');
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState(false);
   const [search, setSearch]     = useState('');
@@ -170,6 +171,18 @@ export default function CatalogDetailsScreen() {
     try {
       const res = await api.get(`/public/designs?catalogId=${id}`);
       setDesigns((res.data as Design[]).filter((d) => d.status === 'available'));
+
+      if (!name || name === 'undefined') {
+        try {
+          const catRes = await api.get('/public/catalogs');
+          const matched = catRes.data.find((c: any) => c._id === id);
+          if (matched && matched.name) {
+            setFetchedCatalogName(matched.name);
+          }
+        } catch (e) {
+          console.error('[CatalogDetails] fallback fetch failed:', e);
+        }
+      }
     } catch (err) {
       console.error('[CatalogDetails] fetchDesigns failed:', err);
       setError(true);
