@@ -1,27 +1,15 @@
-import React, { useCallback, useRef } from 'react';
-import { Animated, Easing, Image, StyleSheet, Text, TouchableOpacity, View, Dimensions } from 'react-native';
-import { useColors } from '../../colors';
+import React, { useCallback, useRef, useMemo } from 'react';
+import { Animated, Easing, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useColors, Colors } from '../../colors';
+import { calcCardWidth } from '../../utils/layout';
+import { buildImageUrl } from '../../utils/imageUrl';
+import type { CartItem } from '../../store/cartStore';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+export type { CartItem };
+
 const H_PADDING  = 24;
 const COLUMN_GAP = 10;
-const CARD_WIDTH = (SCREEN_WIDTH - H_PADDING * 2 - COLUMN_GAP) / 2;
-
-export type CartItem = {
-  _id: string;
-  catalogName?: string;
-  title?: string;
-  sku: string;
-  weight: number | string;
-  imageUrl?: string | null;
-};
-
-export function buildImageUrl(imageUrl?: string | null): string | null {
-  if (!imageUrl) return null;
-  const img = String(imageUrl);
-  if (img.startsWith('http')) return img;
-  return `https://apis.27012610.xyz${img}`;
-}
+const CARD_WIDTH = calcCardWidth(H_PADDING, COLUMN_GAP);
 
 export interface CartItemRowProps {
   item: CartItem;
@@ -29,9 +17,9 @@ export interface CartItemRowProps {
   onRemove: () => void;
 }
 
-export function CartItemRow({ item, index, onRemove }: CartItemRowProps) {
+export const CartItemRow = React.memo(function CartItemRow({ item, index, onRemove }: CartItemRowProps) {
   const C = useColors();
-  const cardStyles = createCardStyles(C);
+  const cardStyles = useMemo(() => createCardStyles(C), [C]);
   const bgAnim = useRef(new Animated.Value(0)).current;
 
   const onPressIn = useCallback(() =>
@@ -115,9 +103,9 @@ export function CartItemRow({ item, index, onRemove }: CartItemRowProps) {
       </View>
     </Animated.View>
   );
-}
+});
 
-function createCardStyles(c: any) {
+function createCardStyles(c: Colors) {
   return StyleSheet.create({
     card: {
       width: CARD_WIDTH,
@@ -144,7 +132,7 @@ function createCardStyles(c: any) {
       justifyContent: 'center',
     },
     placeholderGlyph: {
-      fontFamily: 'CormorantGaramond_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 28,
       color: c.GOLD_DEEP,
       opacity: 0.4,
@@ -159,7 +147,7 @@ function createCardStyles(c: any) {
       borderRadius: 6,
     },
     indexText: {
-      fontFamily: 'Outfit_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 10,
       color: c.MUTED,
       letterSpacing: 0.5,
@@ -169,7 +157,7 @@ function createCardStyles(c: any) {
       gap: 8,
     },
     title: {
-      fontFamily: 'CormorantGaramond_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 16,
       color: c.INK,
       lineHeight: 19,
@@ -189,7 +177,7 @@ function createCardStyles(c: any) {
       flex: 1,
     },
     chipLabel: {
-      fontFamily: 'Outfit_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 7.5,
       letterSpacing: 1.6,
       textTransform: 'uppercase',
@@ -197,7 +185,7 @@ function createCardStyles(c: any) {
       marginBottom: 1,
     },
     chipValue: {
-      fontFamily: 'Outfit_400Regular',
+      fontFamily: 'Helvetica', fontWeight: '400',
       fontSize: 10,
       color: c.INK,
       letterSpacing: 0.1,
@@ -213,7 +201,7 @@ function createCardStyles(c: any) {
       gap: 6,
     },
     removeBtnText: {
-      fontFamily: 'Outfit_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 9,
       letterSpacing: 2,
       textTransform: 'uppercase',

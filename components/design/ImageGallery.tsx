@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Image } from 'expo-image';
-import { useColors } from '../../colors';
+import { useColors, Colors } from '../../colors';
 import { Design } from '../catalog/DesignCard';
 
 export interface ImageGalleryProps {
@@ -13,7 +13,7 @@ export interface ImageGalleryProps {
   onToggleWishlist: (item: Design) => void;
 }
 
-export function ImageGallery({
+export const ImageGallery = React.memo(function ImageGallery({
   finalImageUrl,
   imageWrapperRef,
   onOpenModal,
@@ -22,7 +22,7 @@ export function ImageGallery({
   onToggleWishlist,
 }: ImageGalleryProps) {
   const C = useColors();
-  const pageS = createImageStyles(C);
+  const pageS = useMemo(() => createImageStyles(C), [C]);
 
   if (!finalImageUrl) {
     return (
@@ -35,19 +35,19 @@ export function ImageGallery({
 
   return (
     <TouchableOpacity
-      ref={imageWrapperRef}
-      collapsable={false}
       activeOpacity={0.96}
       onPress={() => onOpenModal(finalImageUrl)}
-      style={pageS.imageWrapper}
+      style={[pageS.imageWrapper, item.dominantColor ? { backgroundColor: item.dominantColor } : undefined]}
     >
-      <Image
-        source={finalImageUrl}
-        style={pageS.image}
-        contentFit="contain"
-        cachePolicy="memory-disk"
-        transition={200}
-      />
+      <View ref={imageWrapperRef} collapsable={false} style={StyleSheet.absoluteFill}>
+        <Image
+          source={finalImageUrl}
+          style={pageS.image}
+          contentFit="contain"
+          cachePolicy="memory-disk"
+          transition={200}
+        />
+      </View>
       {/* Subtle gold rule under image */}
       <View style={pageS.imageRule} />
 
@@ -63,14 +63,14 @@ export function ImageGallery({
       </TouchableOpacity>
     </TouchableOpacity>
   );
-}
+});
 
-function createImageStyles(c: any) {
+function createImageStyles(c: Colors) {
   return StyleSheet.create({
     imageWrapper: {
       flex: 1,
       minHeight: 120,
-      backgroundColor: c.NAVY_DEEP,
+      backgroundColor: c.TINT, // Beige fallback
       borderRadius: 18,
       marginBottom: 0,
       overflow: 'hidden',
@@ -100,11 +100,11 @@ function createImageStyles(c: any) {
       marginBottom: 0, gap: 12,
     },
     noImageGlyph: {
-      fontFamily: 'CormorantGaramond_300Light',
+      fontFamily: 'Helvetica',
       fontSize: 30, color: c.GOLD_DEEP, opacity: 0.4,
     },
     noImageLabel: {
-      fontFamily: 'Outfit_300Light',
+      fontFamily: 'Helvetica', fontWeight: '300',
       fontSize: 9, letterSpacing: 3,
       textTransform: 'uppercase', color: c.MUTED,
     },

@@ -22,9 +22,6 @@
 
 import {
   Alert,
-  Animated,
-  Dimensions,
-  Easing,
   FlatList,
   Image,
   KeyboardAvoidingView,
@@ -40,32 +37,33 @@ import {
 
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef, useState, useMemo } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useColors } from '../colors';
+import { useColors, Colors } from '../colors';
 import { validateOfferCode } from '../services/campaigns';
-import { getOrRegisterPushToken } from '../services/notifications';
-import useCartStore from '../store/cartStore';
+
+import useCartStore, { CartStore } from '../store/cartStore';
 import { CartItemRow, CartItem } from '../components/cart/CartItemRow';
 import { CartSummaryBar } from '../components/cart/CartSummaryBar';
 
+import { WHATSAPP_NUMBER } from '../utils/constants';
+import { SCREEN_WIDTH, calcCardWidth } from '../utils/layout';
+
 /* ─── Constants ─── */
-const WHATSAPP_NUMBER = '919712779146';
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const H_PADDING  = 24;
 const COLUMN_GAP = 10;
-const CARD_WIDTH = (SCREEN_WIDTH - H_PADDING * 2 - COLUMN_GAP) / 2;
+const CARD_WIDTH = calcCardWidth(H_PADDING, COLUMN_GAP);
 
 
 
 /* ─── Main Screen ─── */
 export default function CartScreen() {
   const C = useColors();
-  const styles = createStyles(C);
+  const styles = useMemo(() => createStyles(C), [C]);
 
-  const items          = useCartStore((s: any) => s.items);
-  const removeFromCart = useCartStore((s: any) => s.removeFromCart);
-  const clearCart      = useCartStore((s: any) => s.clearCart);
+  const items          = useCartStore((s: CartStore) => s.items);
+  const removeFromCart = useCartStore((s: CartStore) => s.removeFromCart);
+  const clearCart      = useCartStore((s: CartStore) => s.clearCart);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [offerCode, setOfferCode] = useState('');
@@ -90,14 +88,12 @@ export default function CartScreen() {
     }
 
     try {
-      const pushToken = await getOrRegisterPushToken();
       const response = await fetch('https://apis.27012610.xyz/inquiries/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           customerName,
           customerPhone,
-          pushToken,
           items: items.map((item: CartItem) => ({
             designId: item._id,
             sku: item.sku,
@@ -314,7 +310,7 @@ export default function CartScreen() {
 
 /* ─────────────── Styles ─────────────── */
 
-function createStyles(c) {
+function createStyles(c: Colors) {
   return StyleSheet.create({
     safe: {
       flex: 1,
@@ -352,28 +348,28 @@ function createStyles(c) {
       justifyContent: 'center',
     },
     backGlyph: {
-      fontFamily: 'Outfit_300Light',
+      fontFamily: 'Helvetica', fontWeight: '300',
       fontSize: 20, color: '#FFFFFF', lineHeight: 22,
     },
     headerCenter: {
       flex: 1,
     },
     eyebrowText: {
-      fontFamily: 'Outfit_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 10,
       letterSpacing: 3,
       color: 'rgba(255,255,255,0.85)',
       marginBottom: 2,
     },
     screenTitle: {
-      fontFamily: 'CormorantGaramond_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 32,
       color: '#FFFFFF',
       letterSpacing: -0.5,
       lineHeight: 34,
     },
     screenTitleItalic: {
-      fontFamily: 'CormorantGaramond_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontStyle: 'italic',
       color: 'rgba(255,255,255,0.7)',
     },
@@ -384,7 +380,7 @@ function createStyles(c) {
       paddingVertical: 10,
     },
     clearBtnText: {
-      fontFamily: 'Outfit_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 12,
       letterSpacing: 1.5,
       textTransform: 'uppercase',
@@ -399,7 +395,7 @@ function createStyles(c) {
       borderColor: c.BORDER_SOFT,
       backgroundColor: c.PAPER,
       paddingHorizontal: 16,
-      fontFamily: 'Outfit_400Regular',
+      fontFamily: 'Helvetica', fontWeight: '400',
       fontSize: 14,
       color: c.INK,
     },
@@ -418,24 +414,24 @@ function createStyles(c) {
       justifyContent: 'center',
     },
     validateBtnText: {
-      fontFamily: 'Outfit_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 12,
       letterSpacing: 1.5,
       textTransform: 'uppercase',
       color: '#FFFFFF',
     },
     validCodeBadge: {
-      backgroundColor: c.availableBg || '#EDF7EE',
+      backgroundColor: '#EDF7EE',
       borderRadius: 10,
       paddingHorizontal: 12,
       paddingVertical: 8,
       borderWidth: 1,
-      borderColor: c.available || '#2E7D32',
+      borderColor: '#2E7D32',
     },
     validCodeText: {
-      fontFamily: 'Outfit_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 12,
-      color: c.available || '#2E7D32',
+      color: '#2E7D32',
     },
 
     /* Grid */
@@ -471,7 +467,7 @@ function createStyles(c) {
       elevation: 3,
     },
     whatsappBtnText: {
-      fontFamily: 'Outfit_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 12,
       letterSpacing: 1.5,
       textTransform: 'uppercase',
@@ -483,7 +479,7 @@ function createStyles(c) {
       lineHeight: 16,
     },
     whatsappHint: {
-      fontFamily: 'Outfit_300Light',
+      fontFamily: 'Helvetica', fontWeight: '300',
       fontSize: 10,
       letterSpacing: 1.5,
       textAlign: 'center',
@@ -500,20 +496,20 @@ function createStyles(c) {
       gap: 12,
     },
     emptyGlyph: {
-      fontFamily: 'CormorantGaramond_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 48,
       color: c.GOLD_DEEP,
       opacity: 0.4,
       marginBottom: 8,
     },
     emptyTitle: {
-      fontFamily: 'CormorantGaramond_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 28,
       color: c.INK,
       letterSpacing: -0.3,
     },
     emptySubtitle: {
-      fontFamily: 'Outfit_300Light',
+      fontFamily: 'Helvetica', fontWeight: '300',
       fontSize: 12,
       letterSpacing: 1,
       color: c.MUTED,
@@ -537,7 +533,7 @@ function createStyles(c) {
       elevation: 3,
     },
     browseBtnText: {
-      fontFamily: 'Outfit_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 12,
       letterSpacing: 1.5,
       textTransform: 'uppercase',

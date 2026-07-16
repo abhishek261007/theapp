@@ -43,33 +43,32 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  UIManager,
   View,
+  Modal,
 } from 'react-native';
 
+import { Image } from 'expo-image';
+
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useColors } from '../../colors';
+import { useColors, Colors } from '../../colors';
 import api from '../../services/api';
 import useCartStore, { CartItem } from '../../store/cartStore';
 import useWishlistStore from '../../store/wishlistStore';
 import { useShimmer } from '../../hooks/useShimmer';
 import { CartAnimationProvider } from '../../components/providers/CartAnimationProvider';
 import { CatalogHeader } from '../../components/catalog/CatalogHeader';
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
+import { buildImageUrl } from '../../utils/imageUrl';
+
+const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
+
 
 
 import { Design, H_PADDING, COLUMN_GAP, CARD_WIDTH, DesignCard } from '../../components/catalog/DesignCard';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
-
-
 /* ─── Skeleton Card (equal size, no tall variant) ─── */
 function SkeletonCard() {
   const C = useColors();
-  const skelS = createSkeletonStyles(C);
+  const skelS = useMemo(() => createSkeletonStyles(C), [C]);
   const shimmer = useShimmer(1200);
   const opacity = shimmer.interpolate({
     inputRange: [0, 0.5, 1],
@@ -94,7 +93,7 @@ function SkeletonCard() {
   );
 }
 
-function createSkeletonStyles(c) {
+function createSkeletonStyles(c: Colors) {
   return StyleSheet.create({
     card: {
       width: CARD_WIDTH,
@@ -124,8 +123,8 @@ function createSkeletonStyles(c) {
    ═══════════════════════════════════════════════════════════════ */
 export default function CatalogDetailsScreen() {
   const C = useColors();
-  const s = createStyles(C);
-  const { id, name } = useLocalSearchParams<{ id: string; name: string }>();
+  const s = useMemo(() => createStyles(C), [C]);
+  const { id, name, dominantColor } = useLocalSearchParams<{ id: string; name: string; dominantColor?: string }>();
   const addToCart  = useCartStore((s) => s.addToCart);
   const cartItems  = useCartStore((s) => s.items);
   const cartCount  = cartItems.length;
@@ -142,6 +141,9 @@ export default function CatalogDetailsScreen() {
   const [minWeightInput, setMinWeightInput] = useState('');
   const [maxWeightInput, setMaxWeightInput] = useState('');
 
+  /* ── Preview Modal ── */
+  const [previewItem, setPreviewItem] = useState<Design | null>(null);
+
   /* ── Sort ── */
   const [sortOpen, setSortOpen] = useState(false);
   const [sortBy, setSortBy] = useState<'default' | 'weight-asc' | 'weight-desc' | 'name-asc' | 'name-desc'>('default');
@@ -156,7 +158,7 @@ export default function CatalogDetailsScreen() {
   const hasWishlist = useWishlistStore((s) => s.has);
 
 
-  const cartIconRef    = useRef<View>(null);
+  const cartIconRef    = useRef<any>(null);
   const cartScaleAnim  = useRef(new Animated.Value(1)).current;
   const badgeScaleAnim = useRef(new Animated.Value(1)).current;
 
@@ -325,19 +327,21 @@ export default function CatalogDetailsScreen() {
           thumbnailUrl: d.thumbnailUrl,
         })}
         isInCart={cartItems.some((i) => i._id === item._id)}
+        catalogColor={dominantColor}
+        onLongPress={setPreviewItem}
       />
     ),
-    [openDesign, handleAddToCart, hasWishlist, toggleWishlist, cartItems]
+    [openDesign, handleAddToCart, hasWishlist, toggleWishlist, dominantColor]
   );
 
   const keyExtractor = useCallback((item: Design) => item._id, []);
 
   return (
+    <>
     <CartAnimationProvider
       cartIconRef={cartIconRef}
       cartScaleAnim={cartScaleAnim}
       badgeScaleAnim={badgeScaleAnim}
-      onTrigger={() => {}}
     >
       <View style={s.safe}>
         <StatusBar barStyle="light-content" backgroundColor={C.NAVY_DEEP} />
@@ -349,6 +353,7 @@ export default function CatalogDetailsScreen() {
           cartIconRef={cartIconRef}
           cartScaleAnim={cartScaleAnim}
           badgeScaleAnim={badgeScaleAnim}
+          dominantColor={dominantColor}
         />
 
         {/* ── Cream body ── */}
@@ -537,12 +542,16 @@ export default function CatalogDetailsScreen() {
               data={filteredDesigns}
               keyExtractor={keyExtractor}
               renderItem={renderItem}
+              extraData={cartItems}
               numColumns={2}
-              showsVerticalScrollIndicator={false}
+              showsVerticalScrollIndicator={true}
+              indicatorStyle="black"
+              style={{ paddingHorizontal: 16 }}
               columnWrapperStyle={s.columnWrapper}
               contentContainerStyle={[
                 s.listContent,
                 filteredDesigns.length === 0 && s.listContentGrow,
+                { paddingBottom: insets.bottom + 80 },
               ]}
               refreshControl={
                 <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.BURGUNDY} />
@@ -576,25 +585,47 @@ export default function CatalogDetailsScreen() {
         <View style={[s.fakeTabBar, { paddingBottom: insets.bottom, height: 10 + insets.bottom, backgroundColor: C.BORDER_SOFT }]} />
       </View>
     </CartAnimationProvider>
+      
+      <Modal
+        visible={previewItem !== null}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setPreviewItem(null)}
+      >
+        <TouchableOpacity 
+          style={s.modalBackdrop} 
+          activeOpacity={1} 
+          onPress={() => setPreviewItem(null)}
+        >
+          {previewItem && (
+            <View style={s.modalContent}>
+              <Image
+                source={buildImageUrl(previewItem.imageUrl)}
+                style={s.modalImage}
+                contentFit="contain"
+              />
+              <View style={s.modalInfoRow}>
+                <Text style={s.modalSku}>{previewItem.sku}</Text>
+                <View style={s.modalDivider} />
+                <Text style={s.modalWeight}>{previewItem.weight}g</Text>
+              </View>
+            </View>
+          )}
+        </TouchableOpacity>
+      </Modal>
+    </>
   );
 }
 
-
-
 /* ─── Global Styles ─── */
-function createStyles(c) {
+function createStyles(c: Colors) {
   return StyleSheet.create({
     safe: { flex: 1, backgroundColor: c.NAVY_DEEP },
-
-
-
-    /* ── Cream body ── */
     body: {
       flex: 1,
       backgroundColor: c.CREAM,
       borderTopWidth: 4,
       borderTopColor: '#0A0A0B',
-      paddingHorizontal: H_PADDING,
       paddingTop: 20,
     },
 
@@ -605,7 +636,7 @@ function createStyles(c) {
       borderRadius: 16,
       borderWidth: 1.5,
       borderColor: c.BORDER_SOFT,
-      paddingHorizontal: 14,
+      paddingHorizontal: H_PADDING,
       paddingVertical: 11,
       marginBottom: 16,
       gap: 8,
@@ -622,12 +653,12 @@ function createStyles(c) {
     searchGlyphFocused: { color: c.NAVY },
     searchInput: {
       flex: 1,
-      fontFamily: 'Outfit_400Regular',
+      fontFamily: 'Helvetica', fontWeight: '400',
       fontSize: 14, color: c.INK,
       paddingVertical: 0,
     },
     searchClear: {
-      fontFamily: 'Outfit_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 10, letterSpacing: 1,
       textTransform: 'uppercase', color: c.NAVY,
     },
@@ -657,7 +688,7 @@ function createStyles(c) {
       color: '#FFFFFF',
     },
     filterBtnText: {
-      fontFamily: 'Outfit_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 10, letterSpacing: 0.5,
       color: c.MUTED,
     },
@@ -695,14 +726,14 @@ function createStyles(c) {
       fontSize: 10,
     },
     footerText: {
-      fontFamily: 'Outfit_300Light',
+      fontFamily: 'Helvetica', fontWeight: '300',
       fontSize: 12,
       letterSpacing: 2,
       textTransform: 'uppercase',
       color: c.MUTED,
     },
     filterPanelLabel: {
-      fontFamily: 'Outfit_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 10, letterSpacing: 1.5,
       color: c.MUTED,
     },
@@ -717,18 +748,18 @@ function createStyles(c) {
       paddingHorizontal: 12, paddingVertical: 9, gap: 6,
     },
     weightInputLabel: {
-      fontFamily: 'Outfit_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 9, letterSpacing: 1.5,
       textTransform: 'uppercase', color: c.MUTED,
     },
     weightInputField: {
       flex: 1,
-      fontFamily: 'Outfit_400Regular',
+      fontFamily: 'Helvetica', fontWeight: '400',
       fontSize: 14, color: c.INK,
       padding: 0,
     },
     weightInputUnit: {
-      fontFamily: 'Outfit_300Light',
+      fontFamily: 'Helvetica', fontWeight: '300',
       fontSize: 11, color: c.MUTED,
     },
     weightInputDivider: {
@@ -742,28 +773,30 @@ function createStyles(c) {
     },
     filterPanelClear: { paddingVertical: 4 },
     filterPanelClearText: {
-      fontFamily: 'Outfit_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 10, letterSpacing: 1,
       textTransform: 'uppercase', color: c.MUTED,
     },
     filterPanelApplyText: {
-      fontFamily: 'Outfit_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 10, letterSpacing: 1,
       textTransform: 'uppercase', color: c.BURGUNDY,
     },
 
     /* Count (matches CatalogsScreen) */
     countRow: {
-      flexDirection: 'row', justifyContent: 'space-between',
-      alignItems: 'center', marginBottom: 14,
+      flexDirection: 'row',      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 16,
+      paddingHorizontal: H_PADDING,
     },
     countLabel: {
-      fontFamily: 'Outfit_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 11, letterSpacing: 2,
       color: c.MUTED,
     },
     countNum: {
-      fontFamily: 'Outfit_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 12, color: c.BURGUNDY,
     },
     countLeft: { flexDirection: 'row', alignItems: 'center' },
@@ -786,7 +819,7 @@ function createStyles(c) {
       color: '#FFFFFF',
     },
     favToggleText: {
-      fontFamily: 'Outfit_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 10, letterSpacing: 0.5, color: c.MUTED,
     },
     favToggleTextActive: {
@@ -801,7 +834,7 @@ function createStyles(c) {
       paddingHorizontal: 10, paddingVertical: 4, gap: 6,
     },
     activeFilterChipText: {
-      fontFamily: 'Outfit_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 10, letterSpacing: 0.5, color: c.BURGUNDY,
     },
     activeFilterChipClear: {
@@ -812,6 +845,7 @@ function createStyles(c) {
     skeletonGrid: {
       flexDirection: 'row', flexWrap: 'wrap',
       justifyContent: 'space-between',
+      paddingHorizontal: H_PADDING,
     },
 
     /* List */
@@ -823,20 +857,20 @@ function createStyles(c) {
     centerBox: {
       flex: 1, alignItems: 'center',
       justifyContent: 'center', paddingBottom: 80,
-      width: SCREEN_WIDTH - H_PADDING * 2,
+      paddingHorizontal: H_PADDING,
     },
     emptyGlyph: {
-      fontFamily: 'CormorantGaramond_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 30, color: c.BURGUNDY,
       marginBottom: 16,
     },
     emptyTitle: {
-      fontFamily: 'CormorantGaramond_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 24, color: c.INK,
       marginBottom: 8,
     },
     emptySubtitle: {
-      fontFamily: 'Outfit_300Light',
+      fontFamily: 'Helvetica', fontWeight: '300',
       fontSize: 11, letterSpacing: 1.5,
       color: c.MUTED, textAlign: 'center',
       textTransform: 'uppercase', lineHeight: 20,
@@ -849,9 +883,10 @@ function createStyles(c) {
       backgroundColor: c.BURGUNDY,
       paddingVertical: 12,
       paddingHorizontal: 32,
+      alignSelf: 'center',
     },
     retryLabel: {
-      fontFamily: 'Outfit_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 10, letterSpacing: 2,
       textTransform: 'uppercase', color: '#FFFFFF',
     },
@@ -870,7 +905,7 @@ function createStyles(c) {
       elevation: 3,
     },
     sortPanelLabel: {
-      fontFamily: 'Outfit_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 11, letterSpacing: 1.5,
       textTransform: 'uppercase', color: c.MUTED,
       marginBottom: 8,
@@ -884,11 +919,11 @@ function createStyles(c) {
       borderRadius: 8,
     },
     sortOptionText: {
-      fontFamily: 'Outfit_400Regular',
+      fontFamily: 'Helvetica', fontWeight: '400',
       fontSize: 14, color: c.INK,
     },
     sortOptionCheck: {
-      fontFamily: 'Outfit_700Bold',
+      fontFamily: 'Helvetica', fontWeight: '700',
       fontSize: 14, color: c.INK,
     },
 
@@ -898,6 +933,53 @@ function createStyles(c) {
       justifyContent: 'center',
       borderTopWidth: 2,
       borderTopColor: '#0A0A0B',
+    },
+    /* Modal */
+    modalBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.85)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    modalContent: {
+      width: SCREEN_W * 0.9,
+      height: SCREEN_H * 0.7,
+      backgroundColor: c.PAPER,
+      borderRadius: 16,
+      overflow: 'hidden',
+      padding: 12,
+    },
+    modalImage: {
+      flex: 1,
+      width: '100%',
+      backgroundColor: c.TINT,
+      borderRadius: 8,
+    },
+    modalInfoRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingTop: 16,
+      paddingBottom: 4,
+      gap: 12,
+    },
+    modalSku: {
+      fontFamily: 'Helvetica', fontWeight: '600',
+      fontSize: 18,
+      letterSpacing: 2,
+      color: c.NAVY_DEEP,
+    },
+    modalDivider: {
+      width: 4,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: c.GOLD_DEEP,
+    },
+    modalWeight: {
+      fontFamily: 'Helvetica', fontWeight: '400',
+      fontSize: 16,
+      letterSpacing: 1,
+      color: c.MUTED,
     },
   });
 }

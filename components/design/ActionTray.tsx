@@ -1,6 +1,6 @@
-import React from 'react';
-import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useColors } from '../../colors';
+import React, { useMemo, useCallback } from 'react';
+import { Animated, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import { useColors, Colors } from '../../colors';
 import { Design } from '../catalog/DesignCard';
 
 export interface ActionTrayProps {
@@ -8,22 +8,27 @@ export interface ActionTrayProps {
   isInCart: boolean;
   isSold: boolean;
   bottomInset: number;
-  btnScaleAnim: Animated.Value;
-  btnBg: Animated.AnimatedInterpolation<string | number>;
   onAddToCart: () => void;
 }
 
-export function ActionTray({
+export const ActionTray = React.memo(function ActionTray({
   item,
   isInCart,
   isSold,
   bottomInset,
-  btnScaleAnim,
-  btnBg,
   onAddToCart,
 }: ActionTrayProps) {
   const C = useColors();
-  const pageS = createActionStyles(C);
+  const pageS = useMemo(() => createActionStyles(C), [C]);
+  
+  const scaleAnim = React.useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = useCallback(() => {
+    Animated.spring(scaleAnim, { toValue: 0.96, useNativeDriver: true, speed: 40, bounciness: 0 }).start();
+  }, [scaleAnim]);
+  const handlePressOut = useCallback(() => {
+    Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, speed: 40, bounciness: 0 }).start();
+  }, [scaleAnim]);
 
   return (
     <>
@@ -47,30 +52,24 @@ export function ActionTray({
         {/* Primary CTA — Add to Cart */}
         {isInCart ? (
           <View style={[pageS.primaryBtn, pageS.primaryBtnAdded]}>
-            <Text style={pageS.primaryBtnTextAdded}>Added ✓</Text>
+            <Text style={[pageS.primaryBtnText, pageS.primaryBtnTextMuted]}>Added ✓</Text>
           </View>
         ) : (
-          <Animated.View style={{ transform: [{ scale: btnScaleAnim }] }}>
-            <TouchableOpacity activeOpacity={1} onPress={onAddToCart} disabled={isSold}>
-              <Animated.View style={[
-                pageS.primaryBtn,
-                isSold && pageS.primaryBtnSold,
-                !isSold && { backgroundColor: btnBg as any },
-              ]}>
-                <Text style={[pageS.primaryBtnText, isSold && pageS.primaryBtnTextSold]}>
-                  {isSold ? 'Sold Out' : 'Add to Order'}
-                </Text>
-                {!isSold && <Text style={pageS.primaryBtnGlyph}>↗</Text>}
-              </Animated.View>
-            </TouchableOpacity>
-          </Animated.View>
+          <TouchableWithoutFeedback onPressIn={handlePressIn} onPressOut={handlePressOut} onPress={onAddToCart} disabled={isSold}>
+            <Animated.View style={[pageS.primaryBtn, isSold && pageS.primaryBtnSold, { transform: [{ scale: scaleAnim }] }]}>
+              <Text style={[pageS.primaryBtnText, isSold && pageS.primaryBtnTextMuted]}>
+                {isSold ? 'Sold Out' : 'Add to Order'}
+              </Text>
+              {!isSold && <Text style={pageS.primaryBtnGlyph}>↗</Text>}
+            </Animated.View>
+          </TouchableWithoutFeedback>
         )}
       </View>
     </>
   );
-}
+});
 
-function createActionStyles(c: any) {
+function createActionStyles(c: Colors) {
   return StyleSheet.create({
     specsRow: {
       flexDirection: 'row',
@@ -90,12 +89,12 @@ function createActionStyles(c: any) {
       width: 1, backgroundColor: c.BORDER_SOFT,
     },
     specLabel: {
-      fontFamily: 'Outfit_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 9, letterSpacing: 1.5,
       textTransform: 'uppercase', color: c.MUTED,
     },
     specValue: {
-      fontFamily: 'CormorantGaramond_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 16, color: c.INK,
       letterSpacing: -0.2,
     },
@@ -130,19 +129,12 @@ function createActionStyles(c: any) {
       shadowOpacity: 0, elevation: 0,
     },
     primaryBtnText: {
-      fontFamily: 'Outfit_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 13, letterSpacing: 1.5,
       textTransform: 'uppercase', color: '#FFFFFF',
     },
-    primaryBtnTextAdded: {
-      fontFamily: 'Outfit_600SemiBold',
-      fontSize: 13, letterSpacing: 1.5,
-      textTransform: 'uppercase', color: c.MUTED,
-    },
-    primaryBtnTextSold: {
-      fontFamily: 'Outfit_600SemiBold',
-      fontSize: 13, letterSpacing: 1.5,
-      textTransform: 'uppercase', color: c.MUTED,
+    primaryBtnTextMuted: {
+      color: c.MUTED,
     },
     primaryBtnGlyph: {
       fontSize: 14, color: c.GOLD_DEEP, lineHeight: 18,

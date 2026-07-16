@@ -1,9 +1,11 @@
-import React, { memo, useCallback, useRef } from 'react';
-import { Animated, Dimensions, Easing, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { memo, useCallback, useRef, useMemo } from 'react';
+import { Animated, Easing, StyleSheet, Text, TouchableOpacity, View, TouchableWithoutFeedback } from 'react-native';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
-import { useColors } from '../../colors';
+import { useColors, Colors } from '../../colors';
 import { useCartAnimation } from '../providers/CartAnimationProvider';
+import { SCREEN_WIDTH } from '../../utils/layout';
+import { buildImageUrl } from '../../utils/imageUrl';
 
 export type Design = {
   _id: string;
@@ -13,45 +15,41 @@ export type Design = {
   status: string;
   imageUrl?: string;
   thumbnailUrl?: string;
+  dominantColor?: string;
 };
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 export const H_PADDING  = 16;
 export const COLUMN_GAP = 10;
 export const CARD_WIDTH = (SCREEN_WIDTH - H_PADDING * 2 - COLUMN_GAP) / 2;
-
-export function buildImageUrl(imageUrl?: string): string | null {
-  if (!imageUrl) return null;
-  if (imageUrl.startsWith('http')) return imageUrl;
-  return `https://apis.27012610.xyz${imageUrl}`;
-}
 
 export interface DesignCardProps {
   item: Design;
   index: number;
   onPress: (item: Design) => void;
+  onLongPress?: (item: Design) => void;
   onAddToCart: (item: Design) => void;
   isWishlisted: boolean;
   onToggleWishlist: (item: Design) => void;
   isInCart: boolean;
+  catalogColor?: string;
 }
 
 export const DesignCard = memo(function DesignCard({
   item,
   index,
   onPress,
+  onLongPress,
   onAddToCart,
   isWishlisted,
   onToggleWishlist,
   isInCart,
+  catalogColor,
 }: DesignCardProps) {
   const C = useColors();
-  const cardS = createCardStyles(C);
+  const cardS = useMemo(() => createCardStyles(C), [C]);
   const { triggerFlyToCart } = useCartAnimation();
 
   const pressAnim    = useRef(new Animated.Value(0)).current;
-  const btnScaleAnim = useRef(new Animated.Value(1)).current;
-  const btnBgAnim    = useRef(new Animated.Value(0)).current;
   const addingRef    = useRef(false);
   const imageViewRef = useRef<View>(null);
 
@@ -75,47 +73,59 @@ export const DesignCard = memo(function DesignCard({
 
   const cardBg      = pressAnim.interpolate({ inputRange: [0, 1], outputRange: [C.CREAM, C.PAPER] });
   const borderColor = pressAnim.interpolate({ inputRange: [0, 1], outputRange: [C.BORDER_SOFT, C.GOLD_DEEP] });
-  const btnBg       = btnBgAnim.interpolate({ inputRange: [0, 1], outputRange: [C.NAVY_DEEP, C.INK] });
 
   const handleAddPress = useCallback(() => {
     if (addingRef.current) return;
     addingRef.current = true;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
 
-    Animated.sequence([
-      Animated.parallel([
-        Animated.timing(btnScaleAnim, { toValue: 0.97, duration: 80, useNativeDriver: true }),
-        Animated.timing(btnBgAnim,    { toValue: 1,    duration: 80, useNativeDriver: false }),
-      ]),
-      Animated.parallel([
-        Animated.timing(btnScaleAnim, { toValue: 1, duration: 100, easing: Easing.out(Easing.back(1.5)), useNativeDriver: true }),
-        Animated.timing(btnBgAnim,    { toValue: 0, duration: 200, useNativeDriver: false }),
-      ]),
-    ]).start();
-
     triggerFlyToCart({ imageUri, sourceRef: imageViewRef as React.RefObject<View> });
     onAddToCart(item);
     setTimeout(() => { addingRef.current = false; }, 100);
-  }, [onAddToCart, item, imageUri, triggerFlyToCart, btnScaleAnim, btnBgAnim]);
+  }, [onAddToCart, item, imageUri, triggerFlyToCart]);
 
   const handleCardPress = useCallback(() => {
     if (addingRef.current) return;
     onPress(item);
   }, [onPress, item]);
 
+  const handleCardLongPress = useCallback(() => {
+    if (onLongPress) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      onLongPress(item);
+    }
+  }, [onLongPress, item]);
+
+  const btnScaleAnim = useRef(new Animated.Value(1)).current;
+  const handleBtnPressIn = useCallback(() => {
+    Animated.spring(btnScaleAnim, { toValue: 0.96, useNativeDriver: true, speed: 40, bounciness: 0 }).start();
+  }, [btnScaleAnim]);
+  const handleBtnPressOut = useCallback(() => {
+    Animated.spring(btnScaleAnim, { toValue: 1, useNativeDriver: true, speed: 40, bounciness: 0 }).start();
+  }, [btnScaleAnim]);
+
   return (
-    <TouchableOpacity activeOpacity={1} onPress={handleCardPress} onPressIn={onPressIn} onPressOut={onPressOut}>
+    <TouchableOpacity 
+      activeOpacity={1} 
+      onPress={handleCardPress} 
+      onLongPress={handleCardLongPress}
+      delayLongPress={400}
+      onPressIn={onPressIn} 
+      onPressOut={onPressOut}
+    >
       <Animated.View style={[cardS.card, { backgroundColor: cardBg, borderColor }]}>
         <View ref={imageViewRef} collapsable={false}>
           {imageUri ? (
             <Image
               source={imageUri}
-              style={cardS.image}
+              style={[cardS.image, catalogColor ? { backgroundColor: catalogColor } : null]}
               contentFit="contain"
               cachePolicy="memory-disk"
+              recyclingKey={imageUri}
+              transition={150}
             />
           ) : (
-            <View style={cardS.imagePlaceholder}>
+            <View style={[cardS.imagePlaceholder, catalogColor ? { backgroundColor: catalogColor } : null]}>
               <Text style={cardS.placeholderGlyph}>◆</Text>
             </View>
           )}
@@ -153,14 +163,12 @@ export const DesignCard = memo(function DesignCard({
               <Text style={cardS.addBtnTextAdded}>Added ✓</Text>
             </View>
           ) : (
-            <Animated.View style={{ transform: [{ scale: btnScaleAnim }] }}>
-              <TouchableOpacity activeOpacity={1} onPress={handleAddPress}>
-                <Animated.View style={[cardS.addBtn, { backgroundColor: btnBg }]}>
-                  <Text style={cardS.addBtnText}>Add to Order</Text>
-                  <Text style={cardS.addBtnGlyph}>↗</Text>
-                </Animated.View>
-              </TouchableOpacity>
-            </Animated.View>
+            <TouchableWithoutFeedback onPressIn={handleBtnPressIn} onPressOut={handleBtnPressOut} onPress={handleAddPress}>
+              <Animated.View style={[cardS.addBtn, { transform: [{ scale: btnScaleAnim }] }]}>
+                <Text style={cardS.addBtnText}>Add to Order</Text>
+                <Text style={cardS.addBtnGlyph}>↗</Text>
+              </Animated.View>
+            </TouchableWithoutFeedback>
           )}
         </View>
       </Animated.View>
@@ -168,7 +176,7 @@ export const DesignCard = memo(function DesignCard({
   );
 });
 
-function createCardStyles(c: any) {
+function createCardStyles(c: Colors) {
   return StyleSheet.create({
     card: {
       width: CARD_WIDTH,
@@ -194,7 +202,7 @@ function createCardStyles(c: any) {
       alignItems: 'center', justifyContent: 'center',
     },
     placeholderGlyph: {
-      fontFamily: 'CormorantGaramond_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 30, color: c.GOLD_DEEP, opacity: 0.5,
     },
     imageRule: {
@@ -238,12 +246,12 @@ function createCardStyles(c: any) {
       opacity: 0.5,
     },
     pillLabel: {
-      fontFamily: 'Outfit_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 7, letterSpacing: 1.5,
       textTransform: 'uppercase', color: c.MUTED,
     },
     pillValue: {
-      fontFamily: 'Outfit_400Regular',
+      fontFamily: 'Helvetica', fontWeight: '400',
       fontSize: 10, color: c.INK, letterSpacing: 0.2,
     },
     goldRule: {
@@ -263,12 +271,12 @@ function createCardStyles(c: any) {
       opacity: 0.5,
     },
     addBtnText: {
-      fontFamily: 'Outfit_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 10, letterSpacing: 1.5,
       textTransform: 'uppercase', color: '#FFFFFF',
     },
     addBtnTextAdded: {
-      fontFamily: 'Outfit_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 10, letterSpacing: 1.5,
       textTransform: 'uppercase', color: c.MUTED,
     },

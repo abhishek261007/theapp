@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import {
   Alert,
   Dimensions,
@@ -15,19 +15,15 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useColors } from '../../colors';
+import { useColors, Colors } from '../../colors';
 import useWishlistStore, { WishlistItem } from '../../store/wishlistStore';
+import { buildImageUrl } from '../../utils/imageUrl';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const H_PADDING  = 24;
 const COLUMN_GAP = 10;
 const CARD_WIDTH = (SCREEN_WIDTH - H_PADDING * 2 - COLUMN_GAP) / 2;
 
-function buildImageUrl(imageUrl?: string): string | null {
-  if (!imageUrl) return null;
-  if (imageUrl.startsWith('http')) return imageUrl;
-  return `https://apis.27012610.xyz${imageUrl}`;
-}
 
 function WishlistCard({
   item,
@@ -41,7 +37,7 @@ function WishlistCard({
   onRemove: (id: string) => void;
 }) {
   const C = useColors();
-  const s = createCardStyles(C);
+  const s = useMemo(() => createCardStyles(C), [C]);
   const imageUri = buildImageUrl(item.thumbnailUrl || item.imageUrl);
   return (
     <TouchableOpacity activeOpacity={0.85} onPress={() => onPress(item)}>
@@ -78,7 +74,7 @@ function WishlistCard({
   );
 }
 
-function createCardStyles(c) {
+function createCardStyles(c: Colors) {
   return StyleSheet.create({
     card: {
       width: CARD_WIDTH,
@@ -104,7 +100,7 @@ function createCardStyles(c) {
       alignItems: 'center', justifyContent: 'center',
     },
     placeholderGlyph: {
-      fontFamily: 'CormorantGaramond_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 30, color: c.GOLD_DEEP, opacity: 0.5,
     },
     body: {
@@ -112,15 +108,15 @@ function createCardStyles(c) {
       gap: 2,
     },
     name: {
-      fontFamily: 'Outfit_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 12, color: c.INK,
     },
     sku: {
-      fontFamily: 'Outfit_400Regular',
+      fontFamily: 'Helvetica', fontWeight: '400',
       fontSize: 10, color: c.MUTED,
     },
     weight: {
-      fontFamily: 'Outfit_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 11, color: c.NAVY,
     },
     removeBtn: {
@@ -138,7 +134,7 @@ function createCardStyles(c) {
 
 export default function WishlistScreen() {
   const C = useColors();
-  const s = createStyles(C);
+  const s = useMemo(() => createStyles(C), [C]);
   const insets = useSafeAreaInsets();
   const { items, remove, clear } = useWishlistStore();
 
@@ -234,7 +230,7 @@ export default function WishlistScreen() {
   );
 }
 
-function createStyles(c) {
+function createStyles(c: Colors) {
   return StyleSheet.create({
     safe: { flex: 1, backgroundColor: c.NAVY_DEEP },
 
@@ -259,12 +255,12 @@ function createStyles(c) {
     },
     headerTitleWrap: { flex: 1 },
     eyebrowText: {
-      fontFamily: 'Outfit_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 10, letterSpacing: 3,
       color: 'rgba(255,255,255,0.85)', marginBottom: 2,
     },
     mainTitle: {
-      fontFamily: 'CormorantGaramond_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 32, lineHeight: 34,
       letterSpacing: -0.5, color: '#FFFFFF',
     },
@@ -275,7 +271,7 @@ function createStyles(c) {
       paddingVertical: 10,
     },
     clearBtnText: {
-      fontFamily: 'Outfit_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 12, letterSpacing: 1.5,
       textTransform: 'uppercase', color: '#FFFFFF',
     },
@@ -290,7 +286,7 @@ function createStyles(c) {
       paddingTop: 16,
     },
     countText: {
-      fontFamily: 'Outfit_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 11, letterSpacing: 2,
       color: c.MUTED,
       marginBottom: 14,
@@ -313,12 +309,12 @@ function createStyles(c) {
       marginBottom: 8,
     },
     emptyTitle: {
-      fontFamily: 'CormorantGaramond_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 28, color: c.INK,
       letterSpacing: -0.3,
     },
     emptySubtitle: {
-      fontFamily: 'Outfit_300Light',
+      fontFamily: 'Helvetica', fontWeight: '300',
       fontSize: 12, letterSpacing: 1,
       color: c.MUTED,
       textAlign: 'center',
@@ -341,7 +337,7 @@ function createStyles(c) {
       elevation: 3,
     },
     browseBtnText: {
-      fontFamily: 'Outfit_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 12, letterSpacing: 1.5,
       textTransform: 'uppercase', color: '#FFFFFF',
     },

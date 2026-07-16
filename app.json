@@ -2,36 +2,27 @@
   "expo": {
     "name": "PM Jewellers (Silver)",
     "slug": "pmj",
-    "version": "1.6.0",
+    "version": "1.7.0",
     "orientation": "portrait",
     "scheme": "pmj",
     "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/images/logo.png",
+      "resizeMode": "cover",
+      "backgroundColor": "#0A0A0B"
+    },
     "newArchEnabled": true,
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/logo.png",
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "package": "com.abhishek261007.pmj",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 23,
-      "edgeToEdgeEnabled": true,
+      "versionCode": 29,
       "predictiveBackGestureEnabled": false,
-      "permissions": [
-        "INTERNET",
-        "POST_NOTIFICATIONS",
-        "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS",
-        "INTERNET",
-        "POST_NOTIFICATIONS",
-        "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS"
-      ],
+      "permissions": ["INTERNET", "POST_NOTIFICATIONS"],
       "blockedPermissions": [
-        "android.permission.RECEIVE_BOOT_COMPLETED",
-        "android.permission.READ_MEDIA_IMAGES",
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.READ_MEDIA_IMAGES",
         "android.permission.READ_EXTERNAL_STORAGE",
@@ -48,10 +39,7 @@
               "pathPrefix": "/catalog"
             }
           ],
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
+          "category": ["BROWSABLE", "DEFAULT"]
         },
         {
           "action": "VIEW",
@@ -63,40 +51,7 @@
               "pathPrefix": "/c"
             }
           ],
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
-        },
-        {
-          "action": "VIEW",
-          "autoVerify": true,
-          "data": [
-            {
-              "scheme": "https",
-              "host": "pmjewellers.com",
-              "pathPrefix": "/catalog"
-            }
-          ],
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
-        },
-        {
-          "action": "VIEW",
-          "autoVerify": true,
-          "data": [
-            {
-              "scheme": "https",
-              "host": "pmjewellers.com",
-              "pathPrefix": "/c"
-            }
-          ],
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
+          "category": ["BROWSABLE", "DEFAULT"]
         }
       ],
       "adaptiveIcon": {
@@ -112,25 +67,14 @@
     "plugins": [
       "expo-router",
       [
-        "expo-splash-screen",
-        {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#D6336C",
-          "dark": {
-            "backgroundColor": "#7048C4"
-          }
-        }
-      ],
-      "expo-audio",
-      [
         "expo-notifications",
         {
-          "icon": "./assets/images/icon.png",
-          "color": "#8B1A4A"
+          "icon": "./assets/images/logo.png",
+          "color": "#0A0A0B"
         }
-      ]
+      ],
+      "expo-image",
+      "expo-splash-screen"
     ],
     "experiments": {
       "typedRoutes": true,
@@ -141,12 +85,6 @@
       "eas": {
         "projectId": "98ee6fb5-d798-4fae-884e-d75964c6fb50"
       }
-    },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
-    "updates": {
-      "url": "https://u.expo.dev/98ee6fb5-d798-4fae-884e-d75964c6fb50"
     }
   }
 }

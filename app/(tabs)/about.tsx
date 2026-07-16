@@ -12,9 +12,9 @@
  */
 
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
+  Image,
   Linking,
   ScrollView,
   StatusBar,
@@ -25,7 +25,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
-import { useColors } from '../../colors';
+import { useColors, Colors } from '../../colors';
 /* ─── Business data ─── */
 const SHOP_NAME = 'PM Jewellers Silver';
 const ADDRESS = 'Chandidham Complex, 1204/F2, MGH Road, Old City, Manekchowk, Ahmedabad, Gujarat 380001';
@@ -75,7 +75,7 @@ function SectionCard({
   children: React.ReactNode;
 }) {
   const C = useColors();
-  const s = createCardStyles(C);
+  const s = useMemo(() => createCardStyles(C), [C]);
   return (
     <View style={s.card}>
       <View style={[s.rule, { backgroundColor: accent }]} />
@@ -100,7 +100,7 @@ function InfoRow({
   accent: string;
 }) {
   const C = useColors();
-  const s = createRowStyles(C);
+  const s = useMemo(() => createRowStyles(C), [C]);
   const Wrapper = onPress ? TouchableOpacity : View;
   return (
     <Wrapper
@@ -113,7 +113,7 @@ function InfoRow({
       </View>
       <View style={s.textWrap}>
         <Text style={s.label}>{label}</Text>
-        <Text style={[s.value, onPress && { color: C.NAVY_DEEP }]}>
+        <Text style={[s.value, onPress && { color: C.NAVY_DEEP }]} selectable={true}>
           {value}
         </Text>
       </View>
@@ -125,7 +125,7 @@ function InfoRow({
 /* ─── Owner contact card ─── */
 function OwnerCard({ owner, accent }: { owner: Owner; accent: string }) {
   const C = useColors();
-  const s = createOwnerStyles(C);
+  const s = useMemo(() => createOwnerStyles(C), [C]);
   const call = useCallback(() => {
     Linking.openURL(`tel:${owner.dial}`).catch(() => {});
   }, [owner.dial]);
@@ -167,7 +167,7 @@ function OwnerCard({ owner, accent }: { owner: Owner; accent: string }) {
 /* ─── Main Screen ─── */
 export default function AboutScreen() {
   const C = useColors();
-  const s = createStyles(C);
+  const s = useMemo(() => createStyles(C), [C]);
   const insets = useSafeAreaInsets();
 
   const openDirections = useCallback(() => {
@@ -290,7 +290,7 @@ export default function AboutScreen() {
 }
 
 /* ─── Styles ─── */
-function createStyles(c) {
+function createStyles(c: Colors) {
   return StyleSheet.create({
     safe: { flex: 1, backgroundColor: c.NAVY_DEEP },
 
@@ -316,20 +316,20 @@ function createStyles(c) {
       flex: 1,
     },
     kicker: {
-      fontFamily: 'Outfit_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 10,
       letterSpacing: 3,
       color: 'rgba(255,255,255,0.92)',
       marginBottom: 4,
     },
     mainTitle: {
-      fontFamily: 'CormorantGaramond_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 28,
       color: '#FFFFFF',
       marginBottom: 2,
     },
     shopTagline: {
-      fontFamily: 'Outfit_300Light',
+      fontFamily: 'Helvetica', fontWeight: '300',
       fontSize: 11,
       letterSpacing: 0.3,
       color: 'rgba(255,255,255,0.78)',
@@ -376,7 +376,7 @@ function createStyles(c) {
       fontSize: 14,
     },
     directionsLabel: {
-      fontFamily: 'Outfit_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 12,
       letterSpacing: 1,
       color: '#FFFFFF',
@@ -384,7 +384,7 @@ function createStyles(c) {
     },
 
     bodyText: {
-      fontFamily: 'Outfit_300Light',
+      fontFamily: 'Helvetica', fontWeight: '300',
       fontSize: 13,
       lineHeight: 20,
       color: c.INK,
@@ -392,7 +392,7 @@ function createStyles(c) {
     },
 
     footerNote: {
-      fontFamily: 'CormorantGaramond_500Medium',
+      fontFamily: 'Helvetica', fontWeight: '500',
       fontSize: 13,
       color: c.INK,
       textAlign: 'center',
@@ -403,7 +403,7 @@ function createStyles(c) {
   });
 }
 
-function createCardStyles(c) {
+function createCardStyles(c: Colors) {
   return StyleSheet.create({
     card: {
       backgroundColor: c.PAPER,
@@ -423,7 +423,7 @@ function createCardStyles(c) {
       marginBottom: 10,
     },
     title: {
-      fontFamily: 'Outfit_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 11,
       letterSpacing: 2,
       color: c.MUTED,
@@ -432,7 +432,7 @@ function createCardStyles(c) {
   });
 }
 
-function createRowStyles(c) {
+function createRowStyles(c: Colors) {
   return StyleSheet.create({
     row: {
       flexDirection: 'row',
@@ -450,7 +450,7 @@ function createRowStyles(c) {
     glyph: { fontSize: 15 },
     textWrap: { flex: 1 },
     label: {
-      fontFamily: 'Outfit_400Regular',
+      fontFamily: 'Helvetica', fontWeight: '400',
       fontSize: 10,
       letterSpacing: 1,
       textTransform: 'uppercase',
@@ -458,7 +458,7 @@ function createRowStyles(c) {
       marginBottom: 2,
     },
     value: {
-      fontFamily: 'Outfit_400Regular',
+      fontFamily: 'Helvetica', fontWeight: '400',
       fontSize: 13,
       color: c.INK,
       lineHeight: 18,
@@ -471,7 +471,7 @@ function createRowStyles(c) {
   });
 }
 
-function createOwnerStyles(c) {
+function createOwnerStyles(c: Colors) {
   return StyleSheet.create({
     card: {
       flexDirection: 'row',
@@ -489,17 +489,17 @@ function createOwnerStyles(c) {
       marginRight: 12,
     },
     avatarGlyph: {
-      fontFamily: 'CormorantGaramond_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 18,
     },
     info: { flex: 1 },
     name: {
-      fontFamily: 'Outfit_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 13,
       color: c.INK,
     },
     phone: {
-      fontFamily: 'Outfit_400Regular',
+      fontFamily: 'Helvetica', fontWeight: '400',
       fontSize: 11,
       color: c.MUTED,
       marginTop: 2,

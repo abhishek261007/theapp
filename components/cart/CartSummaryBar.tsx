@@ -1,20 +1,22 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { useColors } from '../../colors';
-import { CartItem } from './CartItemRow';
+import { useColors, Colors } from '../../colors';
+import { CartItem } from '../../store/cartStore';
 
 export interface CartSummaryBarProps {
   items: CartItem[];
   horizontalPadding?: number;
 }
 
-export function CartSummaryBar({ items, horizontalPadding = 24 }: CartSummaryBarProps) {
+export const CartSummaryBar = React.memo(function CartSummaryBar({ items, horizontalPadding = 24 }: CartSummaryBarProps) {
   const C = useColors();
-  const styles = createSummaryStyles(C, horizontalPadding);
+  const styles = useMemo(() => createSummaryStyles(C, horizontalPadding), [C, horizontalPadding]);
 
-  const totalWeight = items
+  const totalWeight = useMemo(() => items
     .reduce((acc: number, i: CartItem) => acc + (parseFloat(String(i.weight)) || 0), 0)
-    .toFixed(1);
+    .toFixed(1), [items]);
+    
+  const collectionsCount = useMemo(() => new Set(items.map((i: CartItem) => i.catalogName)).size, [items]);
 
   return (
     <View style={styles.summaryStrip}>
@@ -31,14 +33,14 @@ export function CartSummaryBar({ items, horizontalPadding = 24 }: CartSummaryBar
       <View style={styles.summaryCell}>
         <Text style={styles.summaryLabel}>Collections</Text>
         <Text style={styles.summaryValue}>
-          {new Set(items.map((i: CartItem) => i.catalogName)).size}
+          {collectionsCount}
         </Text>
       </View>
     </View>
   );
-}
+});
 
-function createSummaryStyles(c: any, horizontalPadding: number) {
+function createSummaryStyles(c: Colors, horizontalPadding: number) {
   return StyleSheet.create({
     summaryStrip: {
       flexDirection: 'row',
@@ -60,14 +62,14 @@ function createSummaryStyles(c: any, horizontalPadding: number) {
       backgroundColor: c.BORDER_SOFT,
     },
     summaryLabel: {
-      fontFamily: 'Outfit_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 10,
       letterSpacing: 1.5,
       textTransform: 'uppercase',
       color: c.MUTED,
     },
     summaryValue: {
-      fontFamily: 'CormorantGaramond_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 22,
       color: c.INK,
       letterSpacing: -0.2,

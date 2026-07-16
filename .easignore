@@ -43,6 +43,4 @@ app-example
 /android
 
 *.keystore
-credentials.json
 iamsofedupofthesebigcompanies-firebase-adminsdk-fbsvc-b1a2790fc5.json
-google-services.json

@@ -1,10 +1,10 @@
-import React, { memo, useCallback, useRef } from 'react';
-import { Animated, Dimensions, Easing, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { memo, useCallback, useRef, useMemo } from 'react';
+import { Animated, Easing, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Image } from 'expo-image';
-import { useColors } from '../../colors';
+import { useColors, Colors } from '../../colors';
+import { SCREEN_WIDTH } from '../../utils/layout';
 
 const API_BASE = 'https://apis.27012610.xyz';
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const GRID_GAP = 12;
 const H_PADDING = 16;
 export const CARD_WIDTH = (SCREEN_WIDTH - H_PADDING * 2 - GRID_GAP) / 2;
@@ -15,6 +15,7 @@ export type Catalog = {
   description?: string;
   heroImageUrl?: string;
   updatedAt?: string;
+  dominantColor?: string;
 };
 
 export function buildHeroUrl(heroImageUrl?: string, updatedAt?: string): string | null {
@@ -39,7 +40,7 @@ export const CatalogCard = memo(function CatalogCard({
   onPress,
 }: CatalogCardProps) {
   const C = useColors();
-  const s = createCardStyles(C);
+  const s = useMemo(() => createCardStyles(C), [C]);
   const ACCENTS = [C.BURGUNDY, C.NAVY, C.TEAL, C.GOLD_DEEP];
   const pressAnim = useRef(new Animated.Value(0)).current;
   const heroUri = buildHeroUrl(item.heroImageUrl, item.updatedAt);
@@ -50,7 +51,7 @@ export const CatalogCard = memo(function CatalogCard({
       toValue: 1,
       duration: 210,
       easing: Easing.out(Easing.ease),
-      useNativeDriver: false,
+      useNativeDriver: true,
     }).start();
   }, [pressAnim]);
 
@@ -59,7 +60,7 @@ export const CatalogCard = memo(function CatalogCard({
       toValue: 0,
       duration: 220,
       easing: Easing.out(Easing.ease),
-      useNativeDriver: false,
+      useNativeDriver: true,
     }).start();
   }, [pressAnim]);
 
@@ -81,7 +82,9 @@ export const CatalogCard = memo(function CatalogCard({
               source={{ uri: heroUri }} 
               style={s.image} 
               contentFit="cover" 
-              cachePolicy="none" 
+              cachePolicy="memory-disk" 
+              recyclingKey={heroUri}
+              transition={150} 
             />
           ) : (
             <View style={[s.image, s.placeholderBg, { backgroundColor: accent + '22' }]}>
@@ -112,7 +115,7 @@ export const CatalogCard = memo(function CatalogCard({
   );
 });
 
-function createCardStyles(c: any) {
+function createCardStyles(c: Colors) {
   return StyleSheet.create({
     card: {
       borderRadius: 18,
@@ -138,22 +141,8 @@ function createCardStyles(c: any) {
       justifyContent: 'center',
     },
     placeholderGlyph: {
-      fontFamily: 'CormorantGaramond_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 34,
-    },
-    indexChip: {
-      position: 'absolute',
-      top: 10,
-      left: 10,
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      borderRadius: 8,
-    },
-    indexChipText: {
-      fontFamily: 'Outfit_600SemiBold',
-      fontSize: 10,
-      color: '#FFFFFF',
-      letterSpacing: 0.5,
     },
     arrowCircle: {
       position: 'absolute',
@@ -185,13 +174,13 @@ function createCardStyles(c: any) {
       marginBottom: 8,
     },
     cardName: {
-      fontFamily: 'CormorantGaramond_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 17,
       lineHeight: 20,
       color: c.INK,
     },
     cardDesc: {
-      fontFamily: 'Outfit_300Light',
+      fontFamily: 'Helvetica', fontWeight: '300',
       fontSize: 10,
       letterSpacing: 1,
       textTransform: 'uppercase',

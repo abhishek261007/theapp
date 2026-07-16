@@ -1,6 +1,8 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 
-type CartItem = {
+export type CartItem = {
   _id: string;
   title?: string;
   sku: string;
@@ -17,21 +19,29 @@ export type CartStore = {
   clearCart: () => void;
 };
 
-const useCartStore = create<CartStore>((set, get) => ({
-  items: [],
+const useCartStore = create<CartStore>()(
+  persist(
+    (set, get) => ({
+      items: [],
 
-  addToCart: (item) => {
-    const alreadyInCart = get().items.some((i) => i._id === item._id);
-    if (alreadyInCart) return;
-    set((state) => ({ items: [...state.items, item] }));
-  },
+      addToCart: (item) => {
+        const alreadyInCart = get().items.some((i) => i._id === item._id);
+        if (alreadyInCart) return;
+        set((state) => ({ items: [...state.items, item] }));
+      },
 
-  removeFromCart: (id) =>
-    set((state) => ({
-      items: state.items.filter((i) => i._id !== id),
-    })),
+      removeFromCart: (id) =>
+        set((state) => ({
+          items: state.items.filter((i) => i._id !== id),
+        })),
 
-  clearCart: () => set({ items: [] }),
-}));
+      clearCart: () => set({ items: [] }),
+    }),
+    {
+      name: 'pmj-cart',
+      storage: createJSONStorage(() => AsyncStorage),
+    }
+  )
+);
 
 export default useCartStore;

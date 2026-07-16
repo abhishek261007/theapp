@@ -18,7 +18,7 @@ export default function Layout() {
         headerShown: false,
         tabBarActiveTintColor: C.BURGUNDY,
         tabBarInactiveTintColor: C.MUTED,
-        tabBarLabelStyle: { fontSize: 13, fontFamily: 'Outfit_600SemiBold' },
+        tabBarLabelStyle: { fontSize: 13, fontFamily: 'Helvetica', fontWeight: '600' },
         tabBarStyle: {
           paddingBottom: insets.bottom + 4,
           height: 60 + insets.bottom,
@@ -52,6 +52,16 @@ export default function Layout() {
       />
 
       <Tabs.Screen
+        name="bank"
+        options={{
+          title: 'Bank',
+          tabBarIcon: ({ color, size }) => (
+            <FontAwesome name="bank" size={size} color={color} />
+          ),
+        }}
+      />
+
+      <Tabs.Screen
         name="about"
         options={{
           title: 'About Us',
@@ -73,7 +83,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   badgeText: {
-    fontFamily: 'Outfit_700Bold',
+    fontFamily: 'Helvetica', fontWeight: '700',
     fontSize: 9, color: '#FFFFFF',
   },
 });

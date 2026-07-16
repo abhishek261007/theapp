@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
-import { useColors } from '../../colors';
+import { useColors, Colors } from '../../colors';
 import { ShimmerBar } from '../ui/ShimmerBar';
 import { Feather } from '@expo/vector-icons';
 
@@ -14,6 +14,8 @@ export interface CatalogHeaderProps {
   cartIconRef: React.RefObject<View>;
   cartScaleAnim: Animated.Value;
   badgeScaleAnim: Animated.Value;
+  dominantColor?: string;
+  subtitle?: React.ReactNode;
 }
 
 export function CatalogHeader({
@@ -22,10 +24,57 @@ export function CatalogHeader({
   cartIconRef,
   cartScaleAnim,
   badgeScaleAnim,
+  dominantColor,
+  subtitle,
 }: CatalogHeaderProps) {
   const C = useColors();
   const insets = useSafeAreaInsets();
-  const s = createHeaderStyles(C);
+  const s = useMemo(() => createHeaderStyles(C), [C]);
+
+  const innerContent = (
+    <View style={s.headerInner}>
+      <TouchableOpacity
+        onPress={() => { if (router.canGoBack()) router.back(); else router.replace('/'); }}
+        activeOpacity={0.8}
+        style={s.backBtn}
+      >
+        <Text style={s.backGlyph}>←</Text>
+      </TouchableOpacity>
+
+      <View style={s.headerTitleWrap}>
+        <Text
+          style={s.mainTitle}
+          numberOfLines={2}
+          adjustsFontSizeToFit
+          minimumFontScale={0.5}
+        >
+          {name}
+        </Text>
+        {subtitle}
+        <View style={s.shimmerClip} pointerEvents="none">
+          <ShimmerBar />
+        </View>
+      </View>
+
+      <Animated.View style={{ transform: [{ scale: cartScaleAnim }] }}>
+        <TouchableOpacity
+          onPress={() => router.push('/cart')}
+          activeOpacity={0.8}
+          style={s.cartBtn}
+        >
+          <View ref={cartIconRef} collapsable={false} style={{ alignItems: 'center' }}>
+            <Feather name="shopping-bag" size={20} color="#FFFFFF" />
+            <Text style={s.cartBtnLabel}>My Order</Text>
+          </View>
+          {cartCount > 0 && (
+            <Animated.View style={[s.badge, { transform: [{ scale: badgeScaleAnim }] }]}>
+              <Text style={s.badgeText}>{cartCount > 99 ? '99+' : cartCount}</Text>
+            </Animated.View>
+          )}
+        </TouchableOpacity>
+      </Animated.View>
+    </View>
+  );
 
   return (
     <LinearGradient
@@ -34,51 +83,12 @@ export function CatalogHeader({
       end={{ x: 1, y: 1 }}
       style={[s.headerBlock, { marginTop: insets.top + 12 }]}
     >
-      <View style={s.headerInner}>
-        <TouchableOpacity
-          onPress={() => { if (router.canGoBack()) router.back(); else router.replace('/'); }}
-          activeOpacity={0.8}
-          style={s.backBtn}
-        >
-          <Text style={s.backGlyph}>←</Text>
-        </TouchableOpacity>
-
-        <View style={s.headerTitleWrap}>
-          <Text
-            style={s.mainTitle}
-            numberOfLines={2}
-            adjustsFontSizeToFit
-            minimumFontScale={0.5}
-          >
-            {name}
-          </Text>
-          <View style={s.shimmerClip} pointerEvents="none">
-            <ShimmerBar />
-          </View>
-        </View>
-
-        <Animated.View style={{ transform: [{ scale: cartScaleAnim }] }}>
-          <TouchableOpacity
-            ref={cartIconRef}
-            onPress={() => router.push('/cart')}
-            activeOpacity={0.8}
-            style={s.cartBtn}
-            collapsable={false}
-          >
-            <Feather name="shopping-bag" size={24} color="#FFFFFF" />
-            {cartCount > 0 && (
-              <Animated.View style={[s.badge, { transform: [{ scale: badgeScaleAnim }] }]}>
-                <Text style={s.badgeText}>{cartCount > 99 ? '99+' : cartCount}</Text>
-              </Animated.View>
-            )}
-          </TouchableOpacity>
-        </Animated.View>
-      </View>
+      {innerContent}
     </LinearGradient>
   );
 }
 
-function createHeaderStyles(c: any) {
+function createHeaderStyles(c: Colors) {
   return StyleSheet.create({
     headerBlock: {
       marginHorizontal: 16,
@@ -91,13 +101,6 @@ function createHeaderStyles(c: any) {
       shadowOpacity: 0.25,
       shadowRadius: 24,
       elevation: 12,
-    },
-    eyebrowText: {
-      fontFamily: 'Outfit_600SemiBold',
-      fontSize: 10,
-      letterSpacing: 3,
-      color: 'rgba(255,255,255,0.85)',
-      marginBottom: 2,
     },
     headerInner: {
       flexDirection: 'row',
@@ -117,7 +120,7 @@ function createHeaderStyles(c: any) {
       marginTop: 4,
     },
     backGlyph: {
-      fontFamily: 'Outfit_300Light',
+      fontFamily: 'Helvetica', fontWeight: '300',
       fontSize: 20, color: '#FFFFFF', lineHeight: 22,
     },
     headerTitleWrap: {
@@ -126,18 +129,22 @@ function createHeaderStyles(c: any) {
       position: 'relative',
     },
     mainTitle: {
-      fontFamily: 'CormorantGaramond_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 32, lineHeight: 36,
       letterSpacing: -.7, color: '#FFFFFF',
       height: 72,
     },
-    shimmerClip: { ...StyleSheet.absoluteFillObject, overflow: 'hidden' },
+    shimmerClip: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, overflow: 'hidden' },
     cartBtn: {
-      width: 56, height: 56,
+      width: 64, height: 64,
       borderRadius: 16,
       backgroundColor: 'rgba(255,255,255,0.18)',
       alignItems: 'center', justifyContent: 'center',
       marginTop: 4,
+    },
+    cartBtnLabel: {
+      fontFamily: 'Helvetica', fontWeight: '500',
+      fontSize: 10, color: '#FFFFFF', marginTop: 4,
     },
     badge: {
       position: 'absolute', top: -4, right: -4,
@@ -146,7 +153,7 @@ function createHeaderStyles(c: any) {
       alignItems: 'center', justifyContent: 'center',
     },
     badgeText: {
-      fontFamily: 'Outfit_400Regular',
+      fontFamily: 'Helvetica', fontWeight: '400',
       fontSize: 8, color: '#FFFFFF', letterSpacing: 0.2,
     },
   });

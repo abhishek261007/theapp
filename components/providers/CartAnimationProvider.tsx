@@ -9,7 +9,7 @@ import React, {
 } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
-import { useColors } from '../../colors';
+import { useColors, Colors } from '../../colors';
 
 export interface FlyPayload {
   imageUri: string | null;
@@ -58,7 +58,7 @@ function CartAnimationOverlayConnected({
   badgeScaleAnim: Animated.Value;
 }) {
   const C = useColors();
-  const overlayS = createOverlayStyles(C);
+  const overlayS = useMemo(() => createOverlayStyles(C), [C]);
   const [thumbs, setThumbs] = useState<FlyingThumb[]>([]);
   const addThumb = useCallback((t: FlyingThumb) => setThumbs((p) => [...p, t]), []);
   const removeThumb = useCallback((id: number) => setThumbs((p) => p.filter((t) => t.id !== id)), []);
@@ -81,21 +81,21 @@ function CartAnimationOverlayConnected({
           Animated.parallel([
             Animated.timing(progress, {
               toValue: 1,
-              duration: 620,
+              duration: 900,
               easing: Easing.out(Easing.cubic),
               useNativeDriver: true,
             }),
             Animated.timing(scale, {
               toValue: 0.7,
-              duration: 620,
+              duration: 900,
               easing: Easing.out(Easing.quad),
               useNativeDriver: true,
             }),
             Animated.sequence([
-              Animated.timing(opacity, { toValue: 0.9, duration: 380, useNativeDriver: true }),
-              Animated.timing(opacity, { toValue: 0, duration: 240, useNativeDriver: true }),
+              Animated.timing(opacity, { toValue: 0.9, duration: 600, useNativeDriver: true }),
+              Animated.timing(opacity, { toValue: 0, duration: 300, useNativeDriver: true }),
             ]),
-            Animated.timing(rotate, { toValue: 1, duration: 620, useNativeDriver: true }),
+            Animated.timing(rotate, { toValue: 1, duration: 900, useNativeDriver: true }),
           ]).start(() => {
             removeThumb(id);
             Animated.sequence([
@@ -200,7 +200,7 @@ export function CartAnimationProvider({
   );
 }
 
-function createOverlayStyles(c: any) {
+function createOverlayStyles(c: Colors) {
   return StyleSheet.create({
     thumb: {
       width: 48,
@@ -217,10 +217,9 @@ function createOverlayStyles(c: any) {
     },
     thumbImage: { width: '100%', height: '100%' },
     thumbPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.TINT },
-    thumbGlyph: { fontFamily: 'CormorantGaramond_600SemiBold', fontSize: 16, color: c.GOLD_DEEP },
+    thumbGlyph: { fontFamily: 'Helvetica', fontWeight: '600', fontSize: 16, color: c.GOLD_DEEP },
     glow: {
-      ...StyleSheet.absoluteFillObject,
-      borderRadius: 10,
+      position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, borderRadius: 10,
       backgroundColor: 'transparent',
       shadowColor: c.NAVY_DEEP,
       shadowOffset: { width: 0, height: 0 },

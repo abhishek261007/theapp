@@ -18,15 +18,14 @@ import { FontAwesome, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, {
-  memo,
   useCallback,
   useEffect,
   useRef,
   useState,
+  useMemo,
 } from 'react';
 import {
   Animated,
-  Dimensions,
   Easing,
   FlatList,
   Image,
@@ -40,15 +39,15 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ScratchOfferCard from '../../components/ScratchOfferCard';
-import { useColors } from '../../colors';
+import { useColors, Colors } from '../../colors';
 import { ActiveCampaign, fetchActiveCampaign } from '../../services/campaigns';
 import api from '../../services/api';
 import useCartStore from '../../store/cartStore';
-const API_BASE = 'https://apis.27012610.xyz';
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+import { useShimmer } from '../../hooks/useShimmer';
+import { SCREEN_WIDTH } from '../../utils/layout';
+import { WHATSAPP_NUMBER } from '../../utils/constants';
 
 /* ─── Contact links ─── */
-const WHATSAPP_NUMBER = '919712779146'; // country code + number, no symbols
 const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('Hi! I would like to enquire about your silver jewellery catalogue.')}`;
 const INSTAGRAM_URL = 'https://www.instagram.com/2005_pmjewellers/';
 
@@ -57,29 +56,12 @@ const H_PADDING = 16;
 const CARD_WIDTH = (SCREEN_WIDTH - H_PADDING * 2 - GRID_GAP) / 2;
 
 import { CatalogCard, Catalog } from '../../components/home/CatalogCard';
-/* ─── Shimmer Hook ─── */
-function useShimmer(duration = 1600) {
-  const anim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.timing(anim, {
-        toValue: 1,
-        duration,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [anim, duration]);
-  return anim;
-}
 
-/* ─── Header Title (gradient-safe, no shimmer-over-dark needed) ─── */
+/* ─── Header Title ─── */
 function HeaderTitle() {
   return (
     <View>
-      <Text style={headerStyles.mainTitle}>PM Jewellers</Text>
+      <Text style={headerStyles.mainTitle} numberOfLines={1} adjustsFontSizeToFit>PM Jewellers</Text>
       <Text style={headerStyles.subTitle}>Wholesaler of Silver Ornaments & Articles</Text>
     </View>
   );
@@ -87,14 +69,14 @@ function HeaderTitle() {
 
 const headerStyles = StyleSheet.create({
   mainTitle: {
-    fontFamily: 'CormorantGaramond_600SemiBold',
+    fontFamily: 'Helvetica', fontWeight: '600',
     fontSize: 40,
     lineHeight: 42,
     letterSpacing: -0.5,
     color: '#FFFFFF',
   },
   subTitle: {
-    fontFamily: 'Outfit_300Light',
+    fontFamily: 'Helvetica', fontWeight: '300',
     fontSize: 12,
     letterSpacing: 0.5,
     color: 'rgba(255,255,255,0.85)',
@@ -105,7 +87,7 @@ const headerStyles = StyleSheet.create({
 /* ─── Skeleton Card ─── */
 function SkeletonCard() {
   const C = useColors();
-  const s = createSkeletonStyles(C);
+  const s = useMemo(() => createSkeletonStyles(C), [C]);
   const shimmer = useShimmer(1200);
   const opacity = shimmer.interpolate({
     inputRange: [0, 0.5, 1],
@@ -123,7 +105,7 @@ function SkeletonCard() {
   );
 }
 
-function createSkeletonStyles(c) {
+function createSkeletonStyles(c: Colors) {
   return StyleSheet.create({
     card: {
       width: CARD_WIDTH,
@@ -161,7 +143,7 @@ function createSkeletonStyles(c) {
 /* ─── Footer Links (WhatsApp / Instagram) ─── */
 function FooterLinks() {
   const C = useColors();
-  const s = createFooterStyles(C);
+  const s = useMemo(() => createFooterStyles(C), [C]);
 
   const openWhatsApp = useCallback(() => {
     Linking.openURL(WHATSAPP_URL).catch(() => {});
@@ -214,7 +196,7 @@ function FooterLinks() {
   );
 }
 
-function createFooterStyles(c) {
+function createFooterStyles(c: Colors) {
   return StyleSheet.create({
     wrap: {
       paddingTop: 8,
@@ -228,7 +210,7 @@ function createFooterStyles(c) {
       marginBottom: 20,
     },
     heading: {
-      fontFamily: 'Outfit_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 11,
       letterSpacing: 2.5,
       color: c.MUTED,
@@ -253,13 +235,13 @@ function createFooterStyles(c) {
       elevation: 3,
     },
     btnLabel: {
-      fontFamily: 'Outfit_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 10,
       letterSpacing: 0.5,
       color: c.INK,
     },
     tagline: {
-      fontFamily: 'CormorantGaramond_500Medium',
+      fontFamily: 'Helvetica', fontWeight: '500',
       fontSize: 13,
       color: c.INK,
       marginTop: 20,
@@ -272,7 +254,7 @@ function createFooterStyles(c) {
 /* ─── Main Screen ─── */
 export default function CatalogsScreen() {
   const C = useColors();
-  const s = createStyles(C);
+  const s = useMemo(() => createStyles(C), [C]);
   const insets = useSafeAreaInsets();
   const [catalogs, setCatalogs]     = useState<Catalog[]>([]);
   const [loading, setLoading]       = useState(true);
@@ -315,7 +297,7 @@ export default function CatalogsScreen() {
   const openCatalog = useCallback((item: Catalog) => {
     router.push({
       pathname: '/catalog/[id]',
-      params: { id: item._id, name: item.name },
+      params: { id: item._id, name: item.name, dominantColor: item.dominantColor || '' },
     });
   }, []);
 
@@ -350,7 +332,10 @@ export default function CatalogsScreen() {
             onPress={() => router.push('/cart')}
             style={s.cartBtn}
           >
-            <Feather name="shopping-bag" size={24} color="#FFFFFF" />
+            <View style={{ alignItems: 'center' }}>
+              <Feather name="shopping-bag" size={20} color="#FFFFFF" />
+              <Text style={s.cartBtnLabel}>My Order</Text>
+            </View>
             {cartCount > 0 && (
               <View style={s.badge}>
                 <Text style={s.badgeText}>{cartCount > 99 ? '99+' : cartCount}</Text>
@@ -439,7 +424,7 @@ export default function CatalogsScreen() {
 }
 
 /* ─── Global Styles ─── */
-function createStyles(c) {
+function createStyles(c: Colors) {
   return StyleSheet.create({
     safe: {
       flex: 1,
@@ -468,13 +453,14 @@ function createStyles(c) {
 
     /* Cart */
     cartBtn: {
-      width: 56,
-      height: 56,
+      width: 64, height: 64,
       borderRadius: 16,
       backgroundColor: 'rgba(255,255,255,0.18)',
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginTop: 4,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    cartBtnLabel: {
+      fontFamily: 'Helvetica', fontWeight: '500',
+      fontSize: 10, color: '#FFFFFF', marginTop: 4,
     },
 
     badge: {
@@ -484,7 +470,7 @@ function createStyles(c) {
       alignItems: 'center', justifyContent: 'center',
     },
     badgeText: {
-      fontFamily: 'Outfit_400Regular',
+      fontFamily: 'Helvetica', fontWeight: '400',
       fontSize: 8, color: '#FFFFFF', letterSpacing: 0.2,
     },
 
@@ -506,7 +492,7 @@ function createStyles(c) {
       marginBottom: 14,
     },
     countLabel: {
-      fontFamily: 'Outfit_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 11,
       letterSpacing: 2,
       color: c.MUTED,
@@ -518,7 +504,7 @@ function createStyles(c) {
       paddingVertical: 3,
     },
     countNum: {
-      fontFamily: 'Outfit_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 12,
       color: c.BURGUNDY,
     },
@@ -551,18 +537,18 @@ function createStyles(c) {
       width: SCREEN_WIDTH - H_PADDING * 2,
     },
     emptyGlyph: {
-      fontFamily: 'CormorantGaramond_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 30,
       marginBottom: 16,
     },
     emptyTitle: {
-      fontFamily: 'CormorantGaramond_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 24,
       color: c.INK,
       marginBottom: 8,
     },
     emptySubtitle: {
-      fontFamily: 'Outfit_300Light',
+      fontFamily: 'Helvetica', fontWeight: '300',
       fontSize: 11,
       letterSpacing: 1.5,
       color: c.MUTED,
@@ -578,9 +564,10 @@ function createStyles(c) {
       backgroundColor: c.BURGUNDY,
       paddingVertical: 12,
       paddingHorizontal: 32,
+      alignSelf: 'center',
     },
     retryLabel: {
-      fontFamily: 'Outfit_600SemiBold',
+      fontFamily: 'Helvetica', fontWeight: '600',
       fontSize: 10,
       letterSpacing: 2,
       textTransform: 'uppercase',
