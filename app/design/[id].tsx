@@ -193,7 +193,8 @@ const wishlistItems  = useWishlistStore((s) => s.items);
 
   /* ── Active design for header title ── */
   const activeDesign = designs[activeIndex] ?? null;
-  const headerTitle  = activeDesign?.catalogName ?? String(params.catalogName ?? '');
+  const validCatalogName = (params.catalogName && params.catalogName !== 'undefined') ? params.catalogName : '';
+  const headerTitle  = activeDesign?.catalogName || validCatalogName || 'Design Details';
 
   /* ── Whether a filter was forwarded from the catalog screen ── */
   const hasForwardedFilter =
@@ -277,14 +278,16 @@ const wishlistItems  = useWishlistStore((s) => s.items);
 
   /* ── Cart ── */
   const handleAddToCart = useCallback((item: Design) => {
+    const validCatalogName = (params.catalogName && params.catalogName !== 'undefined') ? params.catalogName : item.catalogName;
     addToCart({
       _id:      item._id,
-      title:    String(params.catalogName ?? item.catalogName),
+      title:    String(validCatalogName),
       sku:      item.sku,
       weight:   item.weight,
       status:   item.status,
       imageUrl: item.imageUrl,
-    });
+      catalogName: String(validCatalogName),
+    } as any);
   }, [addToCart, params.catalogName]);
 
   /* ── Viewability: track active index ── */

@@ -131,6 +131,7 @@ export default function CatalogDetailsScreen() {
   const insets     = useSafeAreaInsets();
 
   const [designs, setDesigns]   = useState<Design[]>([]);
+  const validCatalogName = (name && name !== 'undefined') ? name : (designs.length > 0 ? designs[0].catalogName : 'Catalog');
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState(false);
   const [search, setSearch]     = useState('');
@@ -279,7 +280,7 @@ export default function CatalogDetailsScreen() {
         params: {
           id:          item._id,
           catalogId:   String(id),
-          catalogName: String(name),
+          catalogName: validCatalogName,
           sku:         item.sku,
           weight:      String(item.weight),
           status:      item.status,
@@ -291,7 +292,7 @@ export default function CatalogDetailsScreen() {
         },
       });
     },
-    [id, name, search, minWeightInput, maxWeightInput]
+    [id, validCatalogName, search, minWeightInput, maxWeightInput]
   );
 
   /* ── Cart ── */
@@ -304,10 +305,10 @@ export default function CatalogDetailsScreen() {
         weight:      item.weight,
         status:      item.status,
         imageUrl:    item.imageUrl,
-        catalogName: String(name),
+        catalogName: String(validCatalogName),
       } satisfies CartItem);
     },
-    [addToCart, name]
+    [addToCart, validCatalogName]
   );
 
   const renderItem = useCallback(
@@ -320,7 +321,7 @@ export default function CatalogDetailsScreen() {
         isWishlisted={hasWishlist(item._id)}
         onToggleWishlist={(d) => toggleWishlist({
           _id: d._id,
-          catalogName: d.catalogName,
+          catalogName: validCatalogName || d.catalogName,
           sku: d.sku,
           weight: d.weight,
           imageUrl: d.imageUrl,
@@ -348,7 +349,7 @@ export default function CatalogDetailsScreen() {
 
         {/* ── Gradient header block ── */}
         <CatalogHeader
-          name={String(name)}
+          name={String(validCatalogName)}
           cartCount={cartCount}
           cartIconRef={cartIconRef}
           cartScaleAnim={cartScaleAnim}
