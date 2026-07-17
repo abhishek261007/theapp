@@ -21,20 +21,18 @@ export const CartSummaryBar = React.memo(function CartSummaryBar({ items, horizo
   return (
     <View style={styles.summaryStrip}>
       <View style={styles.summaryCell}>
-        <Text style={styles.summaryLabel}>Items</Text>
         <Text style={styles.summaryValue}>{items.length}</Text>
+        <Text style={styles.summaryLabel}>Items</Text>
       </View>
       <View style={styles.summarySep} />
       <View style={styles.summaryCell}>
-        <Text style={styles.summaryLabel}>Total Weight</Text>
         <Text style={styles.summaryValue}>{totalWeight}g</Text>
+        <Text style={styles.summaryLabel}>Weight</Text>
       </View>
       <View style={styles.summarySep} />
       <View style={styles.summaryCell}>
-        <Text style={styles.summaryLabel}>Collections</Text>
-        <Text style={styles.summaryValue}>
-          {collectionsCount}
-        </Text>
+        <Text style={styles.summaryValue}>{collectionsCount}</Text>
+        <Text style={styles.summaryLabel}>Colls</Text>
       </View>
     </View>
   );
@@ -44,35 +42,38 @@ function createSummaryStyles(c: Colors, horizontalPadding: number) {
   return StyleSheet.create({
     summaryStrip: {
       flexDirection: 'row',
-      backgroundColor: c.BORDER_SOFT,
-      gap: 1.5,
-      marginBottom: 1.5,
-      marginHorizontal: horizontalPadding,
+      alignSelf: 'center',
+      backgroundColor: c.PAPER,
+      borderWidth: 1,
+      borderColor: c.BORDER_SOFT,
+      borderRadius: 999,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      gap: 12,
+      marginBottom: 16,
     },
     summaryCell: {
-      flex: 1,
-      backgroundColor: c.PAPER,
-      paddingVertical: 16,
-      paddingHorizontal: 14,
-      gap: 4,
+      flexDirection: 'row',
       alignItems: 'center',
+      gap: 4,
     },
     summarySep: {
-      width: 1.5,
+      width: 1,
+      height: 12,
+      alignSelf: 'center',
       backgroundColor: c.BORDER_SOFT,
     },
     summaryLabel: {
-      fontFamily: 'Helvetica', fontWeight: '600',
-      fontSize: 10,
-      letterSpacing: 1.5,
+      fontFamily: 'Helvetica', fontWeight: '500',
+      fontSize: 9,
       textTransform: 'uppercase',
+      letterSpacing: 0.5,
       color: c.MUTED,
     },
     summaryValue: {
       fontFamily: 'Helvetica', fontWeight: '600',
-      fontSize: 22,
+      fontSize: 10,
       color: c.INK,
-      letterSpacing: -0.2,
     },
   });
 }

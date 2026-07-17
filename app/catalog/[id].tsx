@@ -345,7 +345,7 @@ export default function CatalogDetailsScreen() {
         onLongPress={setPreviewItem}
       />
     ),
-    [openDesign, handleAddToCart, hasWishlist, toggleWishlist, dominantColor]
+    [openDesign, handleAddToCart, hasWishlist, toggleWishlist, dominantColor, cartItems]
   );
 
   const keyExtractor = useCallback((item: Design) => item._id, []);

@@ -2,9 +2,18 @@
   "expo": {
     "name": "PM Jewellers (Silver)",
     "slug": "pmj",
-    "version": "1.7.0",
+    "version": "1.7.1",
     "orientation": "portrait",
     "scheme": "pmj",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/98ee6fb5-d798-4fae-884e-d75964c6fb50",
+      "requestHeaders": {
+        "expo-channel-name": "production"
+      }
+    },
     "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/images/logo.png",
@@ -19,9 +28,12 @@
     "android": {
       "package": "com.abhishek261007.pmj",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 29,
+      "versionCode": 31,
       "predictiveBackGestureEnabled": false,
-      "permissions": ["INTERNET", "POST_NOTIFICATIONS"],
+      "permissions": [
+        "INTERNET",
+        "POST_NOTIFICATIONS"
+      ],
       "blockedPermissions": [
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.READ_MEDIA_IMAGES",
@@ -39,7 +51,10 @@
               "pathPrefix": "/catalog"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         },
         {
           "action": "VIEW",
@@ -51,7 +66,10 @@
               "pathPrefix": "/c"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ],
       "adaptiveIcon": {
